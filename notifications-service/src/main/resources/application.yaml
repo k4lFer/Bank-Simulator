@@ -1,0 +1,37 @@
+spring:
+  application:
+    name: notifications-service
+
+  datasource:
+    url: ${NOTIFICATIONS_DATASOURCE_URL:jdbc:mysql://localhost:3307/bank_notifications?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:rootpass}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    consumer:
+      group-id: notifications-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: com.pck4x.sharedcontracts.*
+
+  docker:
+    compose:
+      enabled: ${DOCKER_COMPOSE_ENABLED:false}
+
+server:
+  port: 8085
+
+springdoc:
+  servers:
+    - url: http://localhost:8000
+      description: Bank Simulator API Gateway

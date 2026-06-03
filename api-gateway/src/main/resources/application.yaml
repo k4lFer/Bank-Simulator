@@ -1,0 +1,119 @@
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowed-origins: "*"
+                allowed-methods: "*"
+                allowed-headers: "*"
+          routes:
+            - id: openapi-users
+              uri: http://users-service:8081
+              predicates:
+                - Path=/users-service/v3/api-docs
+              filters:
+                - StripPrefix=1
+            - id: openapi-accounts
+              uri: http://accounts-service:8082
+              predicates:
+                - Path=/accounts-service/v3/api-docs
+              filters:
+                - StripPrefix=1
+            - id: openapi-transfers
+              uri: http://transfers-service:8083
+              predicates:
+                - Path=/transfers-service/v3/api-docs
+              filters:
+                - StripPrefix=1
+            - id: openapi-ledger
+              uri: http://ledger-service:8084
+              predicates:
+                - Path=/ledger-service/v3/api-docs
+              filters:
+                - StripPrefix=1
+            - id: openapi-notifications
+              uri: http://notifications-service:8085
+              predicates:
+                - Path=/notifications-service/v3/api-docs
+              filters:
+                - StripPrefix=1
+            - id: users-auth
+              uri: http://users-service:8081
+              predicates:
+                - Path=/api/auth/**
+            - id: users-service
+              uri: http://users-service:8081
+              predicates:
+                - Path=/api/users/**
+              filters:
+                - JwtValidation
+            - id: users-admin
+              uri: http://users-service:8081
+              predicates:
+                - Path=/api/admin/**
+              filters:
+                - JwtValidation
+            - id: accounts-service
+              uri: http://accounts-service:8082
+              predicates:
+                - Path=/api/accounts/**
+              filters:
+                - JwtValidation
+            - id: transfers-service
+              uri: http://transfers-service:8083
+              predicates:
+                - Path=/api/transfers/**
+              filters:
+                - JwtValidation
+            - id: ledger-service
+              uri: http://ledger-service:8084
+              predicates:
+                - Path=/api/ledger/**
+              filters:
+                - JwtValidation
+            - id: notifications-service
+              uri: http://notifications-service:8085
+              predicates:
+                - Path=/api/notifications/**
+              filters:
+                - JwtValidation
+  docker:
+    compose:
+      enabled: ${DOCKER_COMPOSE_ENABLED:false}
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    config-url: /v3/api-docs/swagger-config
+    persistAuthorization: true
+    urls:
+      - name: gateway
+        url: /v3/api-docs
+      - name: users-service
+        url: /users-service/v3/api-docs
+      - name: accounts-service
+        url: /accounts-service/v3/api-docs
+      - name: transfers-service
+        url: /transfers-service/v3/api-docs
+      - name: ledger-service
+        url: /ledger-service/v3/api-docs
+      - name: notifications-service
+        url: /notifications-service/v3/api-docs
+
+server:
+  port: 8000
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dGhpcyBpcyBhIHNlY3JldCBrZXkgZm9yIGJhbmsgc2ltdWxhdG9yIGRlbW8gcHVycG9zZXMgb25seQo=}
