@@ -28,4 +28,13 @@ public class LedgerEntries {
         this.currency = currency;
         this.createdAt = LocalDateTime.now();
     }
+
+    public LedgerEntries(String accountNumber, String entryType, BigDecimal amount, String currency) {
+        this.transferId = null;
+        this.accountNumber = accountNumber;
+        this.entryType = entryType;
+        this.amount = amount;
+        this.currency = currency;
+        this.createdAt = LocalDateTime.now();
+    }
 }
