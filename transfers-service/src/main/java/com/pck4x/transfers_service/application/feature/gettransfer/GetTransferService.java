@@ -1,13 +1,14 @@
-package com.pck4x.transfers_service.application.feature.transfer;
+package com.pck4x.transfers_service.application.feature.gettransfer;
+
+import java.util.UUID;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.pck4x.sharedcontracts.result.OutputPort;
 import com.pck4x.transfers_service.application.dto.response.TransferResponse;
 import com.pck4x.transfers_service.application.mapper.TransferMapper;
 import com.pck4x.transfers_service.application.port.output.TransferRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
 
 @Service
 public class GetTransferService implements GetTransferUseCase {

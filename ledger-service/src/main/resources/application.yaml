@@ -6,14 +6,20 @@ spring:
     url: ${LEDGER_DATASOURCE_URL:jdbc:mysql://localhost:3307/bank_ledger?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:rootpass}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      idle-timeout: 300000
+      connection-timeout: 5000
+      max-lifetime: 600000
 
   jpa:
     hibernate:
       ddl-auto: ${JPA_DDL_AUTO:update}
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql: false
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
@@ -30,8 +36,18 @@ spring:
 
 server:
   port: 8084
+  tomcat:
+    threads:
+      max: 50
+      min-spare: 5
+    accept-count: 50
+    connection-timeout: 5000
 
 springdoc:
   servers:
     - url: http://localhost:8000
       description: Bank Simulator API Gateway
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dGhpcyBpcyBhIHNlY3JldCBrZXkgZm9yIGJhbmsgc2ltdWxhdG9yIGRlbW8gcHVycG9zZXMgb25seQo=}

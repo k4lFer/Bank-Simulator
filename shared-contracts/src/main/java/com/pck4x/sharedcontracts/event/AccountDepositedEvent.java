@@ -3,11 +3,7 @@ package com.pck4x.sharedcontracts.event;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.UUID;
-import lombok.Getter;
-import lombok.Setter;
 
-@Getter
-@Setter
 public class AccountDepositedEvent implements Serializable {
     private UUID accountId;
     private String accountNumber;
@@ -23,6 +19,46 @@ public class AccountDepositedEvent implements Serializable {
         this.accountNumber = accountNumber;
         this.amount = amount;
         this.balanceAfter = balanceAfter;
+        this.currency = currency;
+    }
+
+    public UUID getAccountId() {
+        return accountId;
+    }
+
+    public void setAccountId(UUID accountId) {
+        this.accountId = accountId;
+    }
+
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public void setAccountNumber(String accountNumber) {
+        this.accountNumber = accountNumber;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
+
+    public BigDecimal getBalanceAfter() {
+        return balanceAfter;
+    }
+
+    public void setBalanceAfter(BigDecimal balanceAfter) {
+        this.balanceAfter = balanceAfter;
+    }
+
+    public String getCurrency() {
+        return currency;
+    }
+
+    public void setCurrency(String currency) {
         this.currency = currency;
     }
 }
