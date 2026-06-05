@@ -2,7 +2,11 @@ package com.pck4x.sharedcontracts.event;
 
 import java.io.Serializable;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 public class UserCreatedEvent implements Serializable {
     private UUID userId;
     private String email;
@@ -19,35 +23,4 @@ public class UserCreatedEvent implements Serializable {
         this.role = role;
     }
 
-    public UUID getUserId() {
-        return userId;
-    }
-
-    public void setUserId(UUID userId) {
-        this.userId = userId;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getFullName() {
-        return fullName;
-    }
-
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
-    }
-
-    public String getRole() {
-        return role;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
-    }
 }

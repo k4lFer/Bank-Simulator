@@ -3,7 +3,11 @@ package com.pck4x.sharedcontracts.event;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 public class AccountCreatedEvent implements Serializable {
     private UUID id;
     private String accountNumber;
@@ -31,75 +35,4 @@ public class AccountCreatedEvent implements Serializable {
         this.createdAt = createdAt;
     }
 
-    public UUID getId() {
-        return id;
-    }
-
-    public void setId(UUID id) {
-        this.id = id;
-    }
-
-    public String getAccountNumber() {
-        return accountNumber;
-    }
-
-    public void setAccountNumber(String accountNumber) {
-        this.accountNumber = accountNumber;
-    }
-
-    public BigDecimal getBalance() {
-        return balance;
-    }
-
-    public void setBalance(BigDecimal balance) {
-        this.balance = balance;
-    }
-
-    public String getCurrency() {
-        return currency;
-    }
-
-    public void setCurrency(String currency) {
-        this.currency = currency;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public UUID getUserId() {
-        return userId;
-    }
-
-    public void setUserId(UUID userId) {
-        this.userId = userId;
-    }
-
-    public String getPin6() {
-        return pin6;
-    }
-
-    public void setPin6(String pin6) {
-        this.pin6 = pin6;
-    }
-
-    public String getPin4() {
-        return pin4;
-    }
-
-    public void setPin4(String pin4) {
-        this.pin4 = pin4;
-    }
-
-    public String getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(String createdAt) {
-        this.createdAt = createdAt;
-    }
 }

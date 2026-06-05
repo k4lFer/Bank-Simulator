@@ -23,7 +23,7 @@ public class LedgerEntriesEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = "transfer_id", nullable = true)
+    @Column(name = "transfer_id", nullable = false)
     private UUID transferId;
 
     @Column(name = "account_number", nullable = false, length = 20)

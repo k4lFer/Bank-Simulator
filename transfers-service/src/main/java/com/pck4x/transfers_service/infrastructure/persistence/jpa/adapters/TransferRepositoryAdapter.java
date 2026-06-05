@@ -5,16 +5,11 @@ import com.pck4x.transfers_service.domain.Transfer;
 import com.pck4x.transfers_service.infrastructure.persistence.jpa.entities.TransferEntity;
 import com.pck4x.transfers_service.infrastructure.persistence.jpa.repositories.JpaTransferRepository;
 import com.pck4x.transfers_service.infrastructure.persistence.mapper.TransferMapper;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-
-import com.pck4x.sharedcontracts.objects.QueryResult;
 
 @Component
 public class TransferRepositoryAdapter implements TransferRepository {
@@ -45,11 +40,10 @@ public class TransferRepositoryAdapter implements TransferRepository {
     }
 
     @Override
-    public QueryResult<List<Transfer>> findByAccountNumber(Pageable pageable, String accountNumber) {
-        Page<TransferEntity> page = jpaTransferRepository.findByAccountNumber(accountNumber, pageable);
-        List<Transfer> transfers = page.getContent().stream()
+    public List<Transfer> findByAccountNumber(String accountNumber) {
+        return jpaTransferRepository.findByAccountNumber(accountNumber)
+                .stream()
                 .map(TransferMapper.INSTANCE::toDomain)
                 .toList();
-        return QueryResult.of(transfers, (int) page.getTotalElements(), page.getTotalPages(), page.getNumber(), page.getSize());
     }
 }
