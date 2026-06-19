@@ -13,19 +13,23 @@ import java.util.UUID;
 public class Transfer {
     private Long id;
     private UUID transferId;
+    private UUID userId;
+    private UUID toUserId;
     private String fromAccount;
     private String toAccount;
     private BigDecimal amount;
     private String currency;
     private String description;
     private TransferStatus status;
+    private String rejectionReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public Transfer() {}
 
-    public Transfer(UUID transferId, String fromAccount, String toAccount, BigDecimal amount, String currency, String description) {
+    public Transfer(UUID transferId, UUID userId, String fromAccount, String toAccount, BigDecimal amount, String currency, String description) {
         this.transferId = transferId;
+        this.userId = userId;
         this.fromAccount = fromAccount;
         this.toAccount = toAccount;
         this.amount = amount;

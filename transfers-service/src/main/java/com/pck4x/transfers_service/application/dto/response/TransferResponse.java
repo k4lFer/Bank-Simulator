@@ -8,12 +8,15 @@ import java.util.UUID;
 
 public record TransferResponse(
         UUID transferId,
+        UUID userId,
+        UUID toUserId,
         String fromAccount,
         String toAccount,
         BigDecimal amount,
         String currency,
         String description,
         TransferStatus status,
+        String rejectionReason,
         LocalDateTime createdAt
 ) {
 }

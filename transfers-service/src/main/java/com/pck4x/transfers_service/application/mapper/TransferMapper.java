@@ -12,12 +12,15 @@ public class TransferMapper {
     public TransferResponse toResponse(Transfer transfer) {
         return new TransferResponse(
                 transfer.getTransferId(),
+                transfer.getUserId(),
+                transfer.getToUserId(),
                 transfer.getFromAccount(),
                 transfer.getToAccount(),
                 transfer.getAmount(),
                 transfer.getCurrency(),
                 transfer.getDescription(),
                 transfer.getStatus(),
+                transfer.getRejectionReason(),
                 transfer.getCreatedAt()
         );
     }

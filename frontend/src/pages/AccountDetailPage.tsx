@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { accountsApi } from '../api/accounts-api'
+import { cardsApi } from '../api/cards-api'
 import { transfersApi, type TransferResponse } from '../api/transfers-api'
 import AppLayout from '../components/layout/AppLayout'
 import Modal from '../components/ui/Modal'
@@ -9,6 +10,7 @@ import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Spinner from '../components/ui/Spinner'
 import type { Account, Movement } from '../models/account'
+import type { Card, CardAccountLink } from '../models/card'
 
 const currencySymbol: Record<string, string> = { USD: '$', PEN: 'S/', EUR: '\u20AC' }
 const currencies = ['USD', 'PEN', 'EUR']
@@ -50,19 +52,26 @@ export default function AccountDetailPage() {
   const [movements, setMovements] = useState<Movement[]>([])
   const [movementsLoading, setMovementsLoading] = useState(false)
 
+  const [cards, setCards] = useState<Card[]>([])
   const [showDeposit, setShowDeposit] = useState(false)
-  const [depositForm, setDepositForm] = useState({ amount: 0, pin4: '1234' })
+  const [depositForm, setDepositForm] = useState({ amount: 0, selectedCardId: '', selectedAccountNumber: '', pin4: '' })
+  const [depositCardAccounts, setDepositCardAccounts] = useState<CardAccountLink[]>([])
   const [showTransfer, setShowTransfer] = useState(false)
   const [transferForm, setTransferForm] = useState({ toAccount: '', amount: 0, description: '' })
   const [busy, setBusy] = useState(false)
+  const [showBlock, setShowBlock] = useState(false)
 
   useEffect(() => {
     if (!id) return
     setLoading(true)
-    accountsApi.getById(id).then((res) => {
-      setAccount(res.data.data ?? null)
+    Promise.all([
+      accountsApi.getById(id),
+      cardsApi.list(),
+    ]).then(([aRes, cRes]) => {
+      setAccount(aRes.data.data ?? null)
+      setCards(cRes.data.data ?? [])
     }).catch(() => {
-      toast.error('Error al cargar cuenta')
+      toast.error('Error al cargar datos')
       navigate('/dashboard')
     }).finally(() => setLoading(false))
   }, [id, navigate])
@@ -71,7 +80,7 @@ export default function AccountDetailPage() {
     if (!account) return
     setTransfersLoading(true)
     transfersApi.byAccount(account.accountNumber).then((res) => {
-      setTransfers(res.data.data ?? [])
+      setTransfers(res.data.data?.results ?? [])
     }).catch(() => toast.error('Error al cargar transferencias'))
     .finally(() => setTransfersLoading(false))
   }, [account])
@@ -85,15 +94,28 @@ export default function AccountDetailPage() {
     .finally(() => setMovementsLoading(false))
   }, [account, tab])
 
+  // Load linked accounts when card is selected for deposit
+  useEffect(() => {
+    if (!depositForm.selectedCardId) { setDepositCardAccounts([]); return }
+    cardsApi.getById(depositForm.selectedCardId).then((res) => {
+      setDepositCardAccounts(res.data.data?.accounts ?? [])
+    }).catch(() => toast.error('Error al cargar cuentas de la tarjeta'))
+  }, [depositForm.selectedCardId])
+
   const handleDeposit = async (e: FormEvent) => {
     e.preventDefault()
     if (!account) return
     setBusy(true)
     try {
-      const res = await accountsApi.deposit(account.accountNumber, account.currency, depositForm.pin4, depositForm.amount)
-      const data = res.data.data
-      toast.success(`Depósito exitoso — Saldo: ${currencySymbol[account.currency] ?? ''}${data?.balanceAfter.toLocaleString()}`)
+      if (depositForm.selectedCardId && depositForm.selectedAccountNumber) {
+        await cardsApi.deposit(depositForm.selectedCardId, depositForm.selectedAccountNumber, depositForm.amount, depositForm.pin4)
+        toast.success('Depósito con tarjeta exitoso')
+      } else {
+        const res = await accountsApi.deposit(account.accountNumber, account.currency, depositForm.amount)
+        toast.success(`Depósito exitoso — Saldo: ${currencySymbol[account.currency] ?? ''}${res.data.data?.balanceAfter.toLocaleString()}`)
+      }
       setShowDeposit(false)
+      setDepositForm({ amount: 0, selectedCardId: '', selectedAccountNumber: '', pin4: '' })
       accountsApi.getById(account.id).then((r) => setAccount(r.data.data))
     } catch {
       toast.error('Error al depositar')
@@ -107,7 +129,7 @@ export default function AccountDetailPage() {
     if (!account) return
     setBusy(true)
     try {
-      const res = await transfersApi.create({
+      const res = await transfersApi.internal({
         fromAccount: account.accountNumber,
         toAccount: transferForm.toAccount,
         amount: transferForm.amount,
@@ -150,7 +172,11 @@ export default function AccountDetailPage() {
             <>
               <Button onClick={() => setShowTransfer(true)}>Transferir</Button>
               <Button onClick={() => setShowDeposit(true)} variant="ghost">Depositar</Button>
+              <Button onClick={() => setShowBlock(true)} className="bg-red-600 hover:bg-red-700">Bloquear</Button>
             </>
+          )}
+          {account.status === 'BLOCKED' && (
+            <span className="text-xs text-red-500 font-medium">Cuenta bloqueada</span>
           )}
         </div>
       </div>
@@ -251,9 +277,44 @@ export default function AccountDetailPage() {
       <Modal open={showDeposit} onClose={() => setShowDeposit(false)} title={`Depositar - ${account.accountNumber}`}>
         <form onSubmit={handleDeposit} className="flex flex-col gap-4">
           <p className="text-sm text-gray-500">{account.currency} — Saldo actual: {currencySymbol[account.currency] ?? ''}{account.balance.toLocaleString()}</p>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500">Tarjeta (opcional)</label>
+            <select value={depositForm.selectedCardId} onChange={(e) => setDepositForm((f) => ({ ...f, selectedCardId: e.target.value, selectedAccountNumber: '', pin4: '' }))}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+              <option value="">Sin tarjeta (depósito directo)</option>
+              {cards.filter((c) => c.status === 'ACTIVE').map((c) => (
+                <option key={c.id} value={c.id}>{c.pan} — Exp: {c.expiryDate}</option>
+              ))}
+            </select>
+          </div>
+
+          {depositForm.selectedCardId && depositCardAccounts.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-gray-500">Cuenta a depositar (vinculada a la tarjeta)</label>
+              <select value={depositForm.selectedAccountNumber} onChange={(e) => setDepositForm((f) => ({ ...f, selectedAccountNumber: e.target.value }))}
+                className="w-full px-3 py-2.5 border border-gray-300 rounded text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200" required>
+                <option value="">Seleccionar cuenta...</option>
+                {depositCardAccounts.map((link) => (
+                  <option key={link.accountNumber} value={link.accountNumber}>{link.accountNumber} ({link.currency}){link.isPrimary ? ' (Principal)' : ''}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <Input label="Monto" type="number" step="0.01" min="0.01" value={depositForm.amount || ''} onChange={(e) => setDepositForm((f) => ({ ...f, amount: parseFloat(e.target.value) || 0 }))} required />
-          <Input label="PIN de 4 dígitos" type="password" maxLength={4} value={depositForm.pin4} onChange={(e) => setDepositForm((f) => ({ ...f, pin4: e.target.value }))} required />
-          <Button type="submit" disabled={busy}>{busy ? 'Depositando...' : 'Depositar'}</Button>
+
+          {depositForm.selectedCardId && (
+            <Input label="PIN de la tarjeta" type="password" maxLength={4} value={depositForm.pin4} onChange={(e) => setDepositForm((f) => ({ ...f, pin4: e.target.value }))} required />
+          )}
+
+          {!depositForm.selectedCardId && (
+            <p className="text-xs text-gray-400">Depósito directo — no requiere PIN</p>
+          )}
+
+          <Button type="submit" disabled={busy || (!!depositForm.selectedCardId && !depositForm.selectedAccountNumber)}>
+            {busy ? 'Depositando...' : depositForm.selectedCardId ? 'Depositar con tarjeta' : 'Depositar'}
+          </Button>
         </form>
       </Modal>
 
@@ -265,6 +326,26 @@ export default function AccountDetailPage() {
           <Input label="Descripción (opcional)" value={transferForm.description} onChange={(e) => setTransferForm((f) => ({ ...f, description: e.target.value }))} />
           <Button type="submit" disabled={busy}>{busy ? 'Transfiriendo...' : 'Transferir'}</Button>
         </form>
+      </Modal>
+
+      <Modal open={showBlock} onClose={() => setShowBlock(false)} title="Bloquear cuenta">
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-600">¿Estás seguro de bloquear la cuenta <strong>{account.accountNumber}</strong>?</p>
+          <p className="text-xs text-gray-400">Una vez bloqueada, no podrás realizar transferencias ni depósitos desde esta cuenta.</p>
+          <div className="flex gap-2 justify-end">
+            <Button variant="ghost" onClick={() => setShowBlock(false)}>Cancelar</Button>
+            <Button onClick={async () => {
+              setBusy(true)
+              try {
+                const res = await accountsApi.block(account.id)
+                setAccount((prev) => prev ? { ...prev, status: res.data.data?.status ?? 'BLOCKED' } : prev)
+                toast.success('Cuenta bloqueada correctamente')
+                setShowBlock(false)
+              } catch { toast.error('Error al bloquear cuenta') }
+              finally { setBusy(false) }
+            }} disabled={busy} className="bg-red-600 hover:bg-red-700">{busy ? 'Bloqueando...' : 'Bloquear cuenta'}</Button>
+          </div>
+        </div>
       </Modal>
     </AppLayout>
   )

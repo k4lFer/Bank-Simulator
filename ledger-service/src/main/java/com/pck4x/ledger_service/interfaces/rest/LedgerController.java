@@ -1,23 +1,31 @@
 package com.pck4x.ledger_service.interfaces.rest;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.http.HttpStatus;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.pck4x.ledger_service.application.port.output.LedgerRepository;
-import com.pck4x.ledger_service.domain.LedgerEntries;
+import com.pck4x.ledger_service.application.dto.response.AccountBalanceResponse;
+import com.pck4x.ledger_service.application.dto.response.DailyReportResponse;
+import com.pck4x.ledger_service.application.dto.response.LedgerEntryResponse;
+import com.pck4x.ledger_service.application.feature.getaccountbalance.GetAccountBalanceUseCase;
+import com.pck4x.ledger_service.application.feature.getallentries.GetAllEntriesUseCase;
+import com.pck4x.ledger_service.application.feature.getdailyreport.GetDailyReportUseCase;
+import com.pck4x.ledger_service.application.feature.getentriesbyaccount.GetEntriesByAccountUseCase;
+import com.pck4x.ledger_service.application.feature.getentriesbytransfer.GetEntriesByTransferUseCase;
+import com.pck4x.ledger_service.application.feature.getentrybyid.GetEntryByIdUseCase;
+import com.pck4x.sharedcontracts.helper.ResponseHelper;
 import com.pck4x.sharedcontracts.objects.ApiResponse;
-import com.pck4x.sharedcontracts.objects.MessageDto;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import org.springframework.security.access.prepost.PreAuthorize;
 
 @RestController
 @RequestMapping("/api/ledger")
@@ -25,38 +33,64 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @PreAuthorize("hasRole('ADMIN')")
 public class LedgerController {
 
-    private final LedgerRepository ledgerRepository;
+    private final GetAllEntriesUseCase getAllEntriesUseCase;
+    private final GetEntryByIdUseCase getEntryByIdUseCase;
+    private final GetEntriesByAccountUseCase getEntriesByAccountUseCase;
+    private final GetEntriesByTransferUseCase getEntriesByTransferUseCase;
+    private final GetDailyReportUseCase getDailyReportUseCase;
+    private final GetAccountBalanceUseCase getAccountBalanceUseCase;
 
-    public LedgerController(LedgerRepository ledgerRepository) {
-        this.ledgerRepository = ledgerRepository;
+    public LedgerController(GetAllEntriesUseCase getAllEntriesUseCase,
+                            GetEntryByIdUseCase getEntryByIdUseCase,
+                            GetEntriesByAccountUseCase getEntriesByAccountUseCase,
+                            GetEntriesByTransferUseCase getEntriesByTransferUseCase,
+                            GetDailyReportUseCase getDailyReportUseCase,
+                            GetAccountBalanceUseCase getAccountBalanceUseCase) {
+        this.getAllEntriesUseCase = getAllEntriesUseCase;
+        this.getEntryByIdUseCase = getEntryByIdUseCase;
+        this.getEntriesByAccountUseCase = getEntriesByAccountUseCase;
+        this.getEntriesByTransferUseCase = getEntriesByTransferUseCase;
+        this.getDailyReportUseCase = getDailyReportUseCase;
+        this.getAccountBalanceUseCase = getAccountBalanceUseCase;
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<LedgerEntries>>> getAll() {
-        var entries = ledgerRepository.findAll();
-        return ResponseEntity.ok(new ApiResponse<>(true, entries, List.of()));
+    public ResponseEntity<ApiResponse<List<LedgerEntryResponse>>> getAll() {
+        var result = getAllEntriesUseCase.execute();
+        return ResponseHelper.toResponse(result);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<LedgerEntries>> getById(@PathVariable Long id) {
-        return ledgerRepository.findById(id)
-                .map(e -> ResponseEntity.ok(new ApiResponse<>(true, e, List.of())))
-                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(new ApiResponse<>(false, null,
-                                List.of(new MessageDto("error", "Ledger entry not found: " + id)))));
+    public ResponseEntity<ApiResponse<LedgerEntryResponse>> getById(@PathVariable Long id) {
+        var result = getEntryByIdUseCase.execute(id);
+        return ResponseHelper.toResponse(result);
     }
 
     @GetMapping("/by-account")
-    public ResponseEntity<ApiResponse<List<LedgerEntries>>> getByAccount(
+    public ResponseEntity<ApiResponse<List<LedgerEntryResponse>>> getByAccount(
             @RequestParam String accountNumber) {
-        var entries = ledgerRepository.findByAccountNumber(accountNumber);
-        return ResponseEntity.ok(new ApiResponse<>(true, entries, List.of()));
+        var result = getEntriesByAccountUseCase.execute(accountNumber);
+        return ResponseHelper.toResponse(result);
     }
 
     @GetMapping("/by-transfer")
-    public ResponseEntity<ApiResponse<List<LedgerEntries>>> getByTransfer(
+    public ResponseEntity<ApiResponse<List<LedgerEntryResponse>>> getByTransfer(
             @RequestParam UUID transferId) {
-        var entries = ledgerRepository.findByTransferId(transferId);
-        return ResponseEntity.ok(new ApiResponse<>(true, entries, List.of()));
+        var result = getEntriesByTransferUseCase.execute(transferId);
+        return ResponseHelper.toResponse(result);
+    }
+
+    @GetMapping("/daily-report")
+    public ResponseEntity<ApiResponse<DailyReportResponse>> getDailyReport(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        var result = getDailyReportUseCase.execute(date);
+        return ResponseHelper.toResponse(result);
+    }
+
+    @GetMapping("/balance")
+    public ResponseEntity<ApiResponse<AccountBalanceResponse>> getBalance(
+            @RequestParam String accountNumber) {
+        var result = getAccountBalanceUseCase.execute(accountNumber);
+        return ResponseHelper.toResponse(result);
     }
 }

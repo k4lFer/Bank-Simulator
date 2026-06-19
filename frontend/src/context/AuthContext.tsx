@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!token) { setLoading(false); return }
     usersApi.me()
       .then((res) => setUser(res.data.data ?? null))
-      .catch(() => localStorage.removeItem('accessToken'))
+      .catch(() => { localStorage.removeItem('accessToken'); localStorage.removeItem('refreshToken') })
       .finally(() => setLoading(false))
   }, [token])
 
@@ -30,12 +30,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = res.data.data
     if (!data?.accessToken) throw new Error('No accessToken in response')
     localStorage.setItem('accessToken', data.accessToken)
+    if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken)
     setToken(data.accessToken)
     setUser(data.user)
   }
 
   const logout = () => {
     localStorage.removeItem('accessToken')
+    localStorage.removeItem('refreshToken')
     setToken(null)
     setUser(null)
   }

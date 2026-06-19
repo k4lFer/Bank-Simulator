@@ -62,6 +62,7 @@ export default function AdminDashboardPage() {
     <div className="min-h-screen flex flex-col bg-gray-50">
       <header className="bg-gray-800 text-white px-8 py-4 flex items-center gap-4">
         <h1 className="text-lg font-semibold mr-auto">Bank Simulator — Admin</h1>
+        <a href="/admin/ledger" className="text-sm underline opacity-80 hover:opacity-100">Libro Mayor</a>
         <span className="text-sm opacity-90">{me?.firstName} {me?.lastName}</span>
         <Button variant="ghost" onClick={logout}>Salir</Button>
       </header>

@@ -18,9 +18,10 @@ import com.pck4x.sharedcontracts.objects.ApiResponse;
 import com.pck4x.sharedcontracts.objects.QueryResult;
 import com.pck4x.transfers_service.application.dto.command.TransferCommand;
 import com.pck4x.transfers_service.application.dto.response.TransferResponse;
+import com.pck4x.transfers_service.application.feature.externaltransfer.ExternalTransferUseCase;
 import com.pck4x.transfers_service.application.feature.gettransfer.GetTransferUseCase;
 import com.pck4x.transfers_service.application.feature.gettransferbyaccount.GetTransfersByAccountUseCase;
-import com.pck4x.transfers_service.application.feature.transfer.TransferUseCase;
+import com.pck4x.transfers_service.application.feature.internaltransfer.InternalTransferUseCase;
 
 import io.swagger.v3.oas.annotations.Parameter;
 
@@ -28,23 +29,42 @@ import io.swagger.v3.oas.annotations.Parameter;
 @RequestMapping("/api/transfers")
 public class TransferController {
 
-    private final TransferUseCase transferUseCase;
+    private final InternalTransferUseCase internalTransferUseCase;
+    private final ExternalTransferUseCase externalTransferUseCase;
     private final GetTransferUseCase getTransferUseCase;
     private final GetTransfersByAccountUseCase getTransfersByAccountUseCase;
 
-    public TransferController(TransferUseCase transferUseCase,
+    public TransferController(InternalTransferUseCase internalTransferUseCase,
+                              ExternalTransferUseCase externalTransferUseCase,
                               GetTransferUseCase getTransferUseCase,
                               GetTransfersByAccountUseCase getTransfersByAccountUseCase) {
-        this.transferUseCase = transferUseCase;
+        this.internalTransferUseCase = internalTransferUseCase;
+        this.externalTransferUseCase = externalTransferUseCase;
         this.getTransferUseCase = getTransferUseCase;
         this.getTransfersByAccountUseCase = getTransfersByAccountUseCase;
     }
 
-    @PostMapping
-    public ResponseEntity<ApiResponse<TransferResponse>> createTransfer(
+    @PostMapping("/internal")
+    public ResponseEntity<ApiResponse<TransferResponse>> internalTransfer(
             @RequestBody TransferCommand command,
             @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
-        var result = transferUseCase.execute(command, userId);
+        var result = internalTransferUseCase.execute(command, userId);
+        return ResponseHelper.toResponse(result);
+    }
+
+    @PostMapping("/external")
+    public ResponseEntity<ApiResponse<TransferResponse>> externalTransfer(
+            @RequestBody TransferCommand command,
+            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+        var result = externalTransferUseCase.execute(command, userId);
+        return ResponseHelper.toResponse(result);
+    }
+
+    @PostMapping("/card-payment")
+    public ResponseEntity<ApiResponse<TransferResponse>> cardPayment(
+            @RequestBody TransferCommand command,
+            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+        var result = externalTransferUseCase.execute(command, userId);
         return ResponseHelper.toResponse(result);
     }
 

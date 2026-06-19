@@ -38,12 +38,6 @@ public class AccountEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
-    @Column(name = "pin6", nullable = false, length = 6)
-    private String pin6;
-
-    @Column(name = "pin4", nullable = false, length = 4)
-    private String pin4;
-
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

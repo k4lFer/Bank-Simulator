@@ -34,7 +34,13 @@ public class TransferEntity {
     @Column(name = "transfer_id", nullable = false, unique = true)
     private UUID transferId;
 
-    @Column(name = "from_account", nullable = false, length = 20)
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
+
+    @Column(name = "to_user_id")
+    private UUID toUserId;
+
+    @Column(name = "from_account", length = 20)
     private String fromAccount;
 
     @Column(name = "to_account", nullable = false, length = 20)
@@ -52,6 +58,9 @@ public class TransferEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
     private TransferStatus status;
+
+    @Column(name = "rejection_reason", length = 255)
+    private String rejectionReason;
 
     @Column(name="created_at", nullable = false)
     private LocalDateTime createdAt;

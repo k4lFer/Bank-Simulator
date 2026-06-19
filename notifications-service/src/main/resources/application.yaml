@@ -29,6 +29,11 @@ spring:
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: com.pck4x.sharedcontracts.*
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        enable.metrics.push: false
 
   docker:
     compose:
@@ -42,6 +47,10 @@ server:
       min-spare: 5
     accept-count: 50
     connection-timeout: 5000
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dGhpcyBpcyBhIHNlY3JldCBrZXkgZm9yIGJhbmsgc2ltdWxhdG9yIGRlbW8gcHVycG9zZXMgb25seQo=}
 
 springdoc:
   servers:

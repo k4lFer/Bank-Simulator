@@ -13,8 +13,6 @@ public record AccountDetailResponse(
         String currency,
         AccountStatus status,
         UUID userId,
-        String maskedPin6,
-        String maskedPin4,
         int movementCount,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

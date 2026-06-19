@@ -19,8 +19,6 @@ public class AccountMapper {
         entity.setCurrency(account.getCurrency());
         entity.setStatus(account.getStatus());
         entity.setUserId(account.getUserId());
-        entity.setPin6(account.getPin6());
-        entity.setPin4(account.getPin4());
         entity.setCreatedAt(account.getCreatedAt() != null ? account.getCreatedAt() : LocalDateTime.now());
         entity.setUpdatedAt(LocalDateTime.now());
         return entity;
@@ -34,8 +32,6 @@ public class AccountMapper {
         account.setCurrency(entity.getCurrency());
         account.setStatus(entity.getStatus());
         account.setUserId(entity.getUserId());
-        account.setPin6(entity.getPin6());
-        account.setPin4(entity.getPin4());
         account.setCreatedAt(entity.getCreatedAt());
         account.setUpdatedAt(entity.getUpdatedAt());
         return account;

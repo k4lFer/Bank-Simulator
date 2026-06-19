@@ -15,16 +15,18 @@ public class AccountCreditedEvent implements Serializable {
     private BigDecimal amount;
     private BigDecimal balanceAfter;
     private String currency;
+    private UUID toUserId;
 
     public AccountCreditedEvent() {}
 
     public AccountCreditedEvent(UUID transferId, UUID accountId, String accountNumber, BigDecimal amount,
-                                BigDecimal balanceAfter, String currency) {
+                                BigDecimal balanceAfter, String currency, UUID toUserId) {
         this.transferId = transferId;
         this.accountId = accountId;
         this.accountNumber = accountNumber;
         this.amount = amount;
         this.balanceAfter = balanceAfter;
         this.currency = currency;
+        this.toUserId = toUserId;
     }
 }

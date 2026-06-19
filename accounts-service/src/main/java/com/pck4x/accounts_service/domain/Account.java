@@ -17,22 +17,18 @@ public class Account {
     private String currency;
     private AccountStatus status;
     private UUID userId;
-    private String pin6;
-    private String pin4;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public Account() {}
 
-    public Account(UUID id, String accountNumber, String currency, UUID userId, String pin6, String pin4) {
+    public Account(UUID id, String accountNumber, String currency, UUID userId) {
         this.id = id;
         this.accountNumber = accountNumber;
         this.balance = BigDecimal.ZERO;
         this.currency = currency;
         this.status = AccountStatus.ACTIVE;
         this.userId = userId;
-        this.pin6 = pin6;
-        this.pin4 = pin4;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }

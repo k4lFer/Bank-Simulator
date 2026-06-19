@@ -61,10 +61,20 @@ spring:
                 - Path=/api/admin/**
               filters:
                 - JwtValidation
+            - id: transfers-stream
+              uri: http://transfers-service:8083
+              predicates:
+                - Path=/api/transfers/stream
             - id: accounts-service
               uri: http://accounts-service:8082
               predicates:
                 - Path=/api/accounts/**
+              filters:
+                - JwtValidation
+            - id: cards-service
+              uri: http://accounts-service:8082
+              predicates:
+                - Path=/api/cards/**
               filters:
                 - JwtValidation
             - id: transfers-service
@@ -73,12 +83,20 @@ spring:
                 - Path=/api/transfers/**
               filters:
                 - JwtValidation
+            - id: ledger-stream
+              uri: http://ledger-service:8084
+              predicates:
+                - Path=/api/ledger/stream
             - id: ledger-service
               uri: http://ledger-service:8084
               predicates:
                 - Path=/api/ledger/**
               filters:
                 - JwtValidation
+            - id: notifications-stream
+              uri: http://notifications-service:8085
+              predicates:
+                - Path=/api/notifications/stream
             - id: notifications-service
               uri: http://notifications-service:8085
               predicates:

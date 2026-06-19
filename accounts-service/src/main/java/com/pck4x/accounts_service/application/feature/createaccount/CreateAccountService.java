@@ -6,8 +6,11 @@ import com.pck4x.accounts_service.application.dto.command.CreateAccountCommand;
 import com.pck4x.accounts_service.application.dto.response.AccountCreatedResponse;
 import com.pck4x.accounts_service.application.port.output.AccountNumberGenerator;
 import com.pck4x.accounts_service.application.port.output.AccountRepository;
+import com.pck4x.accounts_service.application.port.output.CardAccountRepository;
+import com.pck4x.accounts_service.application.port.output.CardRepository;
 import com.pck4x.accounts_service.application.port.output.EventPublisher;
 import com.pck4x.accounts_service.domain.Account;
+import com.pck4x.accounts_service.domain.CardAccount;
 import com.pck4x.accounts_service.application.mapper.AccountDtoMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,28 +25,41 @@ public class CreateAccountService implements CreateAccountUseCase {
     private final AccountRepository accountRepository;
     private final AccountNumberGenerator accountNumberGenerator;
     private final EventPublisher eventPublisher;
+    private final CardRepository cardRepository;
+    private final CardAccountRepository cardAccountRepository;
 
     public CreateAccountService(AccountRepository accountRepository,
                                 AccountNumberGenerator accountNumberGenerator,
-                                EventPublisher eventPublisher) {
+                                EventPublisher eventPublisher,
+                                CardRepository cardRepository,
+                                CardAccountRepository cardAccountRepository) {
         this.accountRepository = accountRepository;
         this.accountNumberGenerator = accountNumberGenerator;
         this.eventPublisher = eventPublisher;
+        this.cardRepository = cardRepository;
+        this.cardAccountRepository = cardAccountRepository;
     }
 
     @Override
     @Transactional
     public OutputPort<AccountCreatedResponse> execute(CreateAccountCommand command, UUID userId) {
+        var optCard = cardRepository.findByIdAndUserId(command.getCardId(), userId);
+        if (optCard.isEmpty()) {
+            return OutputPort.notFound("Card not found or does not belong to you");
+        }
+
         Account account = new Account(
                 UUID.randomUUID(),
                 accountNumberGenerator.generate(),
                 command.getCurrency(),
-                userId,
-                command.getPin6(),
-                command.getPin4()
+                userId
         );
 
         account = accountRepository.save(account);
+
+        var linkedAccounts = cardAccountRepository.findByCardId(command.getCardId());
+        boolean isPrimary = linkedAccounts.isEmpty();
+        cardAccountRepository.save(new CardAccount(command.getCardId(), account.getId(), isPrimary, account.getCurrency()));
 
         eventPublisher.publish("bank.account.events", new AccountCreatedEvent(
                 account.getId(),
@@ -52,8 +68,6 @@ public class CreateAccountService implements CreateAccountUseCase {
                 account.getCurrency(),
                 account.getStatus().name(),
                 account.getUserId(),
-                account.getPin6(),
-                account.getPin4(),
                 account.getCreatedAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
         ));
 

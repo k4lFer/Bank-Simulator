@@ -15,6 +15,10 @@ public class TransferRequestedEvent implements Serializable {
     private BigDecimal amount;
     private String currency;
     private String description;
+    private String pin4;
+    private String transferType;
+    private UUID userId;
+    private UUID cardId;
 
     public TransferRequestedEvent() {}
 
@@ -26,5 +30,6 @@ public class TransferRequestedEvent implements Serializable {
         this.amount = amount;
         this.currency = currency;
         this.description = description;
+        this.transferType = "EXTERNAL";
     }
 }

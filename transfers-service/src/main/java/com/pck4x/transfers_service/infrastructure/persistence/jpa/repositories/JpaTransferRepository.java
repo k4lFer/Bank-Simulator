@@ -13,6 +13,6 @@ import java.util.UUID;
 public interface JpaTransferRepository extends JpaRepository<TransferEntity, Long> {
     Optional<TransferEntity> findByTransferId(UUID transferId);
 
-    @Query("SELECT t FROM TransferEntity t WHERE t.fromAccount = :accountNumber OR t.toAccount = :accountNumber ORDER BY t.createdAt DESC")
+    @Query("SELECT t FROM TransferEntity t WHERE t.fromAccount = :accountNumber OR (t.toAccount = :accountNumber AND t.status <> 'REJECTED') ORDER BY t.createdAt DESC")
     Page<TransferEntity> findByAccountNumber(@Param("accountNumber") String accountNumber, Pageable pageable);
 }

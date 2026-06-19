@@ -15,23 +15,19 @@ public class AccountCreatedEvent implements Serializable {
     private String currency;
     private String status;
     private UUID userId;
-    private String pin6;
-    private String pin4;
     private String createdAt;
 
     public AccountCreatedEvent() {}
 
     public AccountCreatedEvent(UUID id, String accountNumber, BigDecimal balance,
                                String currency, String status, UUID userId,
-                               String pin6, String pin4, String createdAt) {
+                               String createdAt) {
         this.id = id;
         this.accountNumber = accountNumber;
         this.balance = balance;
         this.currency = currency;
         this.status = status;
         this.userId = userId;
-        this.pin6 = pin6;
-        this.pin4 = pin4;
         this.createdAt = createdAt;
     }
 

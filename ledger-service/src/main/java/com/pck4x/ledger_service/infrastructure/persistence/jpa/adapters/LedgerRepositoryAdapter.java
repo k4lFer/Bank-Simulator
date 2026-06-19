@@ -1,5 +1,6 @@
 package com.pck4x.ledger_service.infrastructure.persistence.jpa.adapters;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -54,6 +55,30 @@ public class LedgerRepositoryAdapter implements LedgerRepository {
     public Optional<LedgerEntries> findById(Long id) {
         return jpaRepository.findById(id)
                 .map(LedgerMapper.INSTANCE::toDomain);
+    }
+
+    @Override
+    public List<LedgerEntries> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end) {
+        return jpaRepository.findByCreatedAtBetweenOrderByCreatedAtAsc(start, end)
+                .stream()
+                .map(LedgerMapper.INSTANCE::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<LedgerEntries> findByAccountNumberAndCreatedAtBetween(String accountNumber, LocalDateTime start, LocalDateTime end) {
+        return jpaRepository.findByAccountNumberAndCreatedAtBetweenOrderByCreatedAtAsc(accountNumber, start, end)
+                .stream()
+                .map(LedgerMapper.INSTANCE::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<LedgerEntries> findByCreatedAtBefore(LocalDateTime date) {
+        return jpaRepository.findByCreatedAtBeforeOrderByCreatedAtAsc(date)
+                .stream()
+                .map(LedgerMapper.INSTANCE::toDomain)
+                .toList();
     }
     
 }

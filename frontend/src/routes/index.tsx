@@ -8,6 +8,7 @@ import AdminLoginPage from '../pages/AdminLogin'
 import RegisterPage from '../pages/Register'
 import DashboardPage from '../pages/Dashboard'
 import AdminDashboardPage from '../pages/AdminDashboard'
+import AdminLedgerPage from '../pages/AdminLedger'
 import AccountDetailPage from '../pages/AccountDetailPage'
 
 export default function AppRoutes() {
@@ -21,6 +22,7 @@ export default function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
       <Route path="/accounts/:id" element={<ProtectedRoute><AccountDetailPage /></ProtectedRoute>} />
       <Route path="/admin" element={<AdminRoute><AdminDashboardPage /></AdminRoute>} />
+      <Route path="/admin/ledger" element={<AdminRoute><AdminLedgerPage /></AdminRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

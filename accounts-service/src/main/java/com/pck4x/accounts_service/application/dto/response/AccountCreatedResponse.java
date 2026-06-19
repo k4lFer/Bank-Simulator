@@ -12,7 +12,5 @@ public record AccountCreatedResponse(
         BigDecimal balance,
         String currency,
         AccountStatus status,
-        String maskedPin6,
-        String maskedPin4,
         LocalDateTime createdAt
 ) {}
