@@ -56,6 +56,11 @@ public class TransferEventConsumer {
                 event.getTransferId(), event.getFromAccount(), event.getToAccount(),
                 event.getAmount(), event.getTransferType());
 
+        if (movementRepository.findByTransferId(event.getTransferId()).isPresent()) {
+            log.info("Duplicate TransferRequestedEvent ignored: transferId={}", event.getTransferId());
+            return;
+        }
+
         var isCardPayment = event.getCardId() != null;
         var isExternal = "EXTERNAL".equals(event.getTransferType());
 
@@ -185,6 +190,7 @@ public class TransferEventConsumer {
                 event.getAmount(),
                 fromAccount.getBalance()
         );
+        debitMovement.setTransferId(event.getTransferId());
         movementRepository.save(debitMovement);
 
         eventPublisher.publish("bank.account.events",
@@ -216,6 +222,7 @@ public class TransferEventConsumer {
                     event.getAmount(),
                     fromAccount.getBalance()
             );
+            reversalMovement.setTransferId(event.getTransferId());
             movementRepository.save(reversalMovement);
 
             eventPublisher.publish("bank.account.events",
@@ -242,6 +249,7 @@ public class TransferEventConsumer {
                     event.getAmount(),
                     fromAccount.getBalance()
             );
+            reversalMovement.setTransferId(event.getTransferId());
             movementRepository.save(reversalMovement);
 
             eventPublisher.publish("bank.account.events",
@@ -262,6 +270,7 @@ public class TransferEventConsumer {
                 event.getAmount(),
                 toAccount.getBalance()
         );
+        creditMovement.setTransferId(event.getTransferId());
         movementRepository.save(creditMovement);
 
         eventPublisher.publish("bank.account.events",

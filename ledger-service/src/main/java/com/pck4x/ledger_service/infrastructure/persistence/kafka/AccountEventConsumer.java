@@ -70,6 +70,14 @@ public class AccountEventConsumer {
     }
 
     private void saveEntry(UUID transferId, String accountNumber, String entryType, BigDecimal amount, String currency) {
+        if (transferId != null) {
+            var existing = ledgerRepository.findByTransferIdAndEntryTypeAndAccountNumber(transferId, entryType, accountNumber);
+            if (existing.isPresent()) {
+                log.info("Duplicate ledger entry ignored: transferId={}, type={}, account={}", transferId, entryType, accountNumber);
+                return;
+            }
+        }
+
         var entry = transferId != null
                 ? new LedgerEntries(transferId, accountNumber, entryType, amount, currency)
                 : new LedgerEntries(accountNumber, entryType, amount, currency);

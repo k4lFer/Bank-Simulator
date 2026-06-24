@@ -44,4 +44,10 @@ public class AccountMovementRepositoryAdapter implements AccountMovementReposito
     public int countByAccountId(UUID accountId) {
         return jpaRepository.countByAccountId(accountId);
     }
+
+    @Override
+    public Optional<AccountMovement> findByTransferId(UUID transferId) {
+        return jpaRepository.findByTransferId(transferId)
+                .map(AccountMovementMapper.INSTANCE::toDomain);
+    }
 }

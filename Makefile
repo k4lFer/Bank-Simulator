@@ -33,11 +33,11 @@ infra: ## Levantar solo MySQL + Kafka para desarrollo local
 	@sleep 3
 	@echo "Creando topics de Kafka..."
 	-docker compose exec -T kafka kafka-topics --bootstrap-server localhost:9092 \
-		--create --topic bank.transfer.requested --partitions 3 --replication-factor 1 2>/dev/null || true
+		--create --topic bank.transfer.events --partitions 3 --replication-factor 1 2>/dev/null || true
 	-docker compose exec -T kafka kafka-topics --bootstrap-server localhost:9092 \
 		--create --topic bank.account.events --partitions 3 --replication-factor 1 2>/dev/null || true
 	-docker compose exec -T kafka kafka-topics --bootstrap-server localhost:9092 \
-		--create --topic bank.transfer.events --partitions 3 --replication-factor 1 2>/dev/null || true
+		--create --topic bank.notification.events --partitions 3 --replication-factor 1 2>/dev/null || true
 	-docker compose exec -T kafka kafka-topics --bootstrap-server localhost:9092 \
 		--create --topic bank.user.events --partitions 2 --replication-factor 1 2>/dev/null || true
 	@echo "✅ Infra lista. Ahora corre: make run-<servicio>"

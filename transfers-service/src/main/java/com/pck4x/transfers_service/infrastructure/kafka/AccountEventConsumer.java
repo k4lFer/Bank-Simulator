@@ -41,6 +41,11 @@ public class AccountEventConsumer {
             log.info("Received AccountDebitedEvent: transferId={}, account={}",
                     e.getTransferId(), e.getAccountNumber());
             transferRepository.findByTransferId(e.getTransferId()).ifPresent(transfer -> {
+                if (transfer.getStatus() != TransferStatus.PENDING) {
+                    log.info("Ignored duplicate AccountDebitedEvent: transferId={}, currentStatus={}",
+                            e.getTransferId(), transfer.getStatus());
+                    return;
+                }
                 transfer.setStatus(TransferStatus.DEBITED);
                 transfer = transferRepository.save(transfer);
                 eventPublisher.publishEvent(new TransferStatusEvent(transfer));
@@ -58,6 +63,10 @@ public class AccountEventConsumer {
             log.info("Received AccountCreditedEvent: transferId={}, account={}",
                     e.getTransferId(), e.getAccountNumber());
             transferRepository.findByTransferId(e.getTransferId()).ifPresent(transfer -> {
+                if (transfer.getStatus() == TransferStatus.COMPLETED) {
+                    log.info("Ignored duplicate AccountCreditedEvent: transferId={}", e.getTransferId());
+                    return;
+                }
                 transfer.setStatus(TransferStatus.COMPLETED);
                 transfer.setToUserId(e.getToUserId());
                 transfer.setUpdatedAt(java.time.LocalDateTime.now());
@@ -80,6 +89,11 @@ public class AccountEventConsumer {
             log.warn("Received AccountRejectedEvent: transferId={}, account={}, reason={}",
                     e.getTransferId(), e.getAccountNumber(), e.getReason());
             transferRepository.findByTransferId(e.getTransferId()).ifPresent(transfer -> {
+                if (transfer.getStatus() != TransferStatus.PENDING) {
+                    log.info("Ignored duplicate AccountRejectedEvent: transferId={}, currentStatus={}",
+                            e.getTransferId(), transfer.getStatus());
+                    return;
+                }
                 transfer.setStatus(TransferStatus.REJECTED);
                 transfer.setRejectionReason(e.getReason());
                 transfer.setUpdatedAt(java.time.LocalDateTime.now());

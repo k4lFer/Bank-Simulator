@@ -33,13 +33,21 @@ export interface QueryResult<T> {
   pageSize: number
 }
 
+function idempotencyKey(): string {
+  return crypto.randomUUID()
+}
+
 export const transfersApi = {
   internal(data: TransferRequest) {
-    return client.post<ApiResponse<TransferResponse>>('/transfers/internal', data)
+    return client.post<ApiResponse<TransferResponse>>('/transfers/internal', data, {
+      headers: { 'Idempotency-Key': idempotencyKey() }
+    })
   },
 
   external(data: TransferRequest) {
-    return client.post<ApiResponse<TransferResponse>>('/transfers/external', data)
+    return client.post<ApiResponse<TransferResponse>>('/transfers/external', data, {
+      headers: { 'Idempotency-Key': idempotencyKey() }
+    })
   },
 
   get(transferId: string) {
@@ -51,6 +59,8 @@ export const transfersApi = {
   },
 
   cardPayment(data: TransferRequest) {
-    return client.post<ApiResponse<TransferResponse>>('/transfers/card-payment', data)
+    return client.post<ApiResponse<TransferResponse>>('/transfers/card-payment', data, {
+      headers: { 'Idempotency-Key': idempotencyKey() }
+    })
   },
 }

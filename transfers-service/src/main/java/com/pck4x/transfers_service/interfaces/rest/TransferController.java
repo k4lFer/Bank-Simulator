@@ -47,24 +47,27 @@ public class TransferController {
     @PostMapping("/internal")
     public ResponseEntity<ApiResponse<TransferResponse>> internalTransfer(
             @RequestBody TransferCommand command,
+            @RequestHeader("Idempotency-Key") UUID idempotencyKey,
             @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
-        var result = internalTransferUseCase.execute(command, userId);
+        var result = internalTransferUseCase.execute(command, idempotencyKey, userId);
         return ResponseHelper.toResponse(result);
     }
 
     @PostMapping("/external")
     public ResponseEntity<ApiResponse<TransferResponse>> externalTransfer(
             @RequestBody TransferCommand command,
+            @RequestHeader("Idempotency-Key") UUID idempotencyKey,
             @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
-        var result = externalTransferUseCase.execute(command, userId);
+        var result = externalTransferUseCase.execute(command, idempotencyKey, userId);
         return ResponseHelper.toResponse(result);
     }
 
     @PostMapping("/card-payment")
     public ResponseEntity<ApiResponse<TransferResponse>> cardPayment(
             @RequestBody TransferCommand command,
+            @RequestHeader("Idempotency-Key") UUID idempotencyKey,
             @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
-        var result = externalTransferUseCase.execute(command, userId);
+        var result = externalTransferUseCase.execute(command, idempotencyKey, userId);
         return ResponseHelper.toResponse(result);
     }
 

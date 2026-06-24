@@ -2,6 +2,7 @@ package com.pck4x.ledger_service.infrastructure.persistence.jpa.repositories;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,4 +16,5 @@ public interface JpaLedgerRepository extends JpaRepository<LedgerEntriesEntity, 
     List<LedgerEntriesEntity> findByCreatedAtBetweenOrderByCreatedAtAsc(LocalDateTime start, LocalDateTime end);
     List<LedgerEntriesEntity> findByAccountNumberAndCreatedAtBetweenOrderByCreatedAtAsc(String accountNumber, LocalDateTime start, LocalDateTime end);
     List<LedgerEntriesEntity> findByCreatedAtBeforeOrderByCreatedAtAsc(LocalDateTime date);
+    Optional<LedgerEntriesEntity> findByTransferIdAndEntryTypeAndAccountNumber(UUID transferId, String entryType, String accountNumber);
 }

@@ -10,7 +10,6 @@ import com.pck4x.transfers_service.application.port.output.TransferEventReposito
 import com.pck4x.transfers_service.application.port.output.TransferRepository;
 import com.pck4x.transfers_service.domain.Transfer;
 import com.pck4x.transfers_service.domain.TransferEvent;
-import com.pck4x.transfers_service.domain.enums.TransferStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,8 +32,14 @@ public class InternalTransferService implements InternalTransferUseCase {
 
     @Override
     @Transactional
-    public OutputPort<TransferResponse> execute(TransferCommand input, UUID userId) {
-        var transferId = UUID.randomUUID();
+    public OutputPort<TransferResponse> execute(TransferCommand input, UUID idempotencyKey, UUID userId) {
+        var existing = transferRepository.findByTransferId(idempotencyKey);
+        if (existing.isPresent()) {
+            var t = existing.get();
+            return OutputPort.ok(toResponse(t), "Internal transfer (idempotent replay)");
+        }
+
+        var transferId = idempotencyKey;
 
         var transfer = new Transfer(
                 transferId,
@@ -69,20 +74,22 @@ public class InternalTransferService implements InternalTransferUseCase {
             );
         }
 
-        var response = new TransferResponse(
-                transfer.getTransferId(),
-                transfer.getUserId(),
-                null, // toUserId — resolved when credited
-                transfer.getFromAccount(),
-                transfer.getToAccount(),
-                transfer.getAmount(),
-                transfer.getCurrency(),
-                transfer.getDescription(),
-                TransferStatus.PENDING,
-                null,
-                transfer.getCreatedAt()
-        );
+        return OutputPort.created(toResponse(transfer), "Internal transfer initiated");
+    }
 
-        return OutputPort.created(response, "Internal transfer initiated");
+    private TransferResponse toResponse(Transfer t) {
+        return new TransferResponse(
+                t.getTransferId(),
+                t.getUserId(),
+                t.getToUserId(),
+                t.getFromAccount(),
+                t.getToAccount(),
+                t.getAmount(),
+                t.getCurrency(),
+                t.getDescription(),
+                t.getStatus(),
+                t.getRejectionReason(),
+                t.getCreatedAt()
+        );
     }
 }

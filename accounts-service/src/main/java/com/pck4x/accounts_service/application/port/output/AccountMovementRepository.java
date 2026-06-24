@@ -11,4 +11,5 @@ public interface AccountMovementRepository {
     Optional<AccountMovement> findById(Long id);
     List<AccountMovement> findByAccountId(UUID accountId);
     int countByAccountId(UUID accountId);
+    Optional<AccountMovement> findByTransferId(UUID transferId);
 }

@@ -4,9 +4,11 @@ import com.pck4x.accounts_service.infrastructure.persistence.jpa.entities.Accoun
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface JpaAccountMovementRepository extends JpaRepository<AccountMovementEntity, Long> {
     List<AccountMovementEntity> findByAccountIdOrderByCreatedAtDesc(UUID accountId);
     int countByAccountId(UUID accountId);
+    Optional<AccountMovementEntity> findByTransferId(UUID transferId);
 }

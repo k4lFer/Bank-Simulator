@@ -7,5 +7,5 @@ import com.pck4x.transfers_service.application.dto.response.TransferResponse;
 import java.util.UUID;
 
 public interface ExternalTransferUseCase {
-    OutputPort<TransferResponse> execute(TransferCommand input, UUID userId);
+    OutputPort<TransferResponse> execute(TransferCommand input, UUID idempotencyKey, UUID userId);
 }

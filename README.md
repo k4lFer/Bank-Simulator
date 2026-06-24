@@ -50,6 +50,7 @@ Sistema bancario simulado con arquitectura de **microservicios**, comunicación 
 | **Database per Service** | Cada microservicio tiene su propia base de datos MySQL |
 | **Zero Trust Security** | Validación JWT tanto en el API Gateway como en cada microservicio de forma individual |
 | **Hexagonal Architecture** | Los servicios siguen clean architecture con puertos/adaptadores y paquetes organizados por dominio |
+| **Idempotency** | Todos los POST de transferencias requieren `Idempotency-Key`; consumers de Kafka ignoran eventos duplicados |
 
 ---
 
@@ -90,7 +91,9 @@ Sistema bancario simulado con arquitectura de **microservicios**, comunicación 
 ### transfers-service — `:8083`
 **Orquestación de transferencias P2P con Outbox Pattern.**
 
-- `POST /api/transfers` — Solicitar una transferencia
+- `POST /api/transfers/internal` — Transferencia entre cuentas propias (requiere `Idempotency-Key`)
+- `POST /api/transfers/external` — Transferencia a cuenta de tercero (requiere `Idempotency-Key`)
+- `POST /api/transfers/card-payment` — Pago con tarjeta (requiere `Idempotency-Key`)
 - `GET /api/transfers/{transferId}` — Estado de una transferencia
 - `GET /api/transfers/by-account/{accountNumber}` — Transferencias por cuenta
 
@@ -128,6 +131,42 @@ Consumirá eventos de transferencia para generar notificaciones de éxito/fallo.
 | `/api/notifications/**` | notifications-service |
 
 Valida el JWT en cada petición entrante (excepto `/api/auth/**`) e inyecta las cabeceras `X-User-Id` y `X-User-Role` hacia los microservicios.
+
+---
+
+## Idempotencia
+
+El sistema garantiza que una misma operación ejecutada múltiples veces produzca el mismo resultado sin efectos secundarios (safe retry). La implementación cubre tres niveles:
+
+### API HTTP — `Idempotency-Key`
+
+Todos los `POST` de transfers-service (`/api/transfers/internal`, `/external`, `/card-payment`) **requieren** la cabecera `Idempotency-Key` con un UUID.
+
+```
+Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
+```
+
+**Flujo:**
+1. El servicio busca si ya existe un transfer con ese UUID como `transferId`
+2. Si existe → devuelve `200 OK` con los mismos datos (idempotent replay)
+3. Si no existe → crea el transfer usando ese UUID como `transferId` y devuelve `201 Created`
+4. La UK (`transfer_id` único en tabla `transfers`) previene duplicados incluso en race conditions
+
+> Si dos requests idénticos llegan simultáneamente, el segundo puede recibir un `409 Conflict` (unique constraint). El cliente debe reintentar con la misma key para obtener el replay.
+
+### Kafka Consumers — Deduplicación de eventos
+
+Cada consumer tiene su propia estrategia de detección de duplicados usando el `transferId` que viaja en todos los eventos:
+
+| Consumer | Estrategia |
+|----------|-----------|
+| **accounts-service** `TransferEventConsumer` | Verifica si ya existe un `AccountMovement` con ese `transferId` (UK en `account_movements.transfer_id`). Si existe, ignora el evento. |
+| **ledger-service** `AccountEventConsumer` | Verifica si ya existe un entry con la combinación `(transfer_id, entry_type, account_number)` (UK compuesta). Si existe, ignora. |
+| **transfers-service** `AccountEventConsumer` | Verifica el status actual del transfer: solo procesa eventos si el transfer está en el estado esperado (`PENDING` para débito/rechazo, `DEBITED` para crédito). |
+
+### Outbox Pattern
+
+El patrón outbox en transfers-service provee **al menos una vez** de publicación a Kafka. El poller reintenta eventos `FAILED`/`PENDING` periódicamente. La idempotencia en los consumers absorbe los duplicados que pudieran generarse por estos reintentos.
 
 ---
 
@@ -183,11 +222,30 @@ Valida el JWT en cada petición entrante (excepto `/api/auth/**`) e inyecta las 
 | `make ps` | Estado de los contenedores + URLs de acceso |
 | `make infra` | Solo MySQL + Zookeeper + Kafka (para desarrollo local) |
 | `make install` | Compilar e instalar `shared-contracts` en `.m2` local |
-| `make run-accounts` | Compilar shared + ejecutar accounts-service |
-| `make run-transfers` | Compilar shared + ejecutar transfers-service |
-| `make run-users` | Compilar shared + ejecutar users-service |
-| `make run-gateway` | Ejecutar api-gateway |
+| `make run-accounts` | Compilar shared + ejecutar accounts-service en `:8082` |
+| `make run-transfers` | Compilar shared + ejecutar transfers-service en `:8083` |
+| `make run-ledger` | Compilar shared + ejecutar ledger-service en `:8084` |
+| `make run-notifications` | Compilar shared + ejecutar notifications-service en `:8085` |
+| `make run-users` | Compilar shared + ejecutar users-service en `:8081` |
+| `make run-gateway` | Ejecutar api-gateway en `:8000` |
 | `make createsuperuser` | Crear usuario administrador vía API |
+
+### Desarrollo local (single service)
+
+Para trabajar en un solo servicio sin Docker Compose completo:
+
+```bash
+# 1. Levantar solo infraestructura (MySQL + Kafka)
+make infra
+
+# 2. En otra terminal, arrancar el servicio que necesites
+make run-accounts
+
+# 3. Si necesitas el API Gateway para rutas unificadas
+make run-gateway
+```
+
+> Los servicios se auto-configuran gracias a `application.yaml` con defaults locales. Kafka debe estar corriendo para que el servicio inicie correctamente. Los topics se crean automáticamente con `make infra`.
 
 ---
 
@@ -197,7 +255,7 @@ Valida el JWT en cada petición entrante (excepto `/api/auth/**`) e inyecta las 
 |----------|--------|
 | users-service | ✅ Completamente implementado |
 | accounts-service | ✅ Completamente implementado |
-| transfers-service | ✅ Completamente implementado (Outbox incluido) |
+| transfers-service | ✅ Completamente implementado (Outbox + Idempotencia) |
 | api-gateway | ✅ Completamente implementado |
 | frontend | ✅ Funcionalidades principales implementadas |
 | shared-contracts | ✅ Completamente implementado |

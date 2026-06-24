@@ -58,6 +58,12 @@ public class LedgerRepositoryAdapter implements LedgerRepository {
     }
 
     @Override
+    public Optional<LedgerEntries> findByTransferIdAndEntryTypeAndAccountNumber(UUID transferId, String entryType, String accountNumber) {
+        return jpaRepository.findByTransferIdAndEntryTypeAndAccountNumber(transferId, entryType, accountNumber)
+                .map(LedgerMapper.INSTANCE::toDomain);
+    }
+
+    @Override
     public List<LedgerEntries> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end) {
         return jpaRepository.findByCreatedAtBetweenOrderByCreatedAtAsc(start, end)
                 .stream()

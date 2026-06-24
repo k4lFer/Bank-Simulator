@@ -12,6 +12,7 @@ import java.util.UUID;
 @Setter
 public class AccountMovement {
     private Long id;
+    private UUID transferId;
     private UUID accountId;
     private String movementNumber;
     private MovementType type;

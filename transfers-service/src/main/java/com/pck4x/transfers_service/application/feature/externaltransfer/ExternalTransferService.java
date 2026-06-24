@@ -10,7 +10,6 @@ import com.pck4x.transfers_service.application.port.output.TransferEventReposito
 import com.pck4x.transfers_service.application.port.output.TransferRepository;
 import com.pck4x.transfers_service.domain.Transfer;
 import com.pck4x.transfers_service.domain.TransferEvent;
-import com.pck4x.transfers_service.domain.enums.TransferStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,14 +32,20 @@ public class ExternalTransferService implements ExternalTransferUseCase {
 
     @Override
     @Transactional
-    public OutputPort<TransferResponse> execute(TransferCommand input, UUID userId) {
+    public OutputPort<TransferResponse> execute(TransferCommand input, UUID idempotencyKey, UUID userId) {
+        var existing = transferRepository.findByTransferId(idempotencyKey);
+        if (existing.isPresent()) {
+            var t = existing.get();
+            return OutputPort.ok(toResponse(t), "Transfer (idempotent replay)");
+        }
+
         boolean isCardPayment = input.getCardId() != null;
 
         if (isCardPayment && (input.getPin4() == null || input.getPin4().isBlank())) {
             return OutputPort.badRequest("PIN is required for card payments");
         }
 
-        var transferId = UUID.randomUUID();
+        var transferId = idempotencyKey;
 
         var transfer = new Transfer(
                 transferId,
@@ -79,20 +84,22 @@ public class ExternalTransferService implements ExternalTransferUseCase {
             );
         }
 
-        var response = new TransferResponse(
-                transfer.getTransferId(),
-                transfer.getUserId(),
-                null, // toUserId — resolved when credited
-                transfer.getFromAccount(),
-                transfer.getToAccount(),
-                transfer.getAmount(),
-                transfer.getCurrency(),
-                transfer.getDescription(),
-                TransferStatus.PENDING,
-                null,
-                transfer.getCreatedAt()
-        );
+        return OutputPort.created(toResponse(transfer), isCardPayment ? "Card payment initiated" : "External transfer initiated");
+    }
 
-        return OutputPort.created(response, isCardPayment ? "Card payment initiated" : "External transfer initiated");
+    private TransferResponse toResponse(Transfer t) {
+        return new TransferResponse(
+                t.getTransferId(),
+                t.getUserId(),
+                t.getToUserId(),
+                t.getFromAccount(),
+                t.getToAccount(),
+                t.getAmount(),
+                t.getCurrency(),
+                t.getDescription(),
+                t.getStatus(),
+                t.getRejectionReason(),
+                t.getCreatedAt()
+        );
     }
 }

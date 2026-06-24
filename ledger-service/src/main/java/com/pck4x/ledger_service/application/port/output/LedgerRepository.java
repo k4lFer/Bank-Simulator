@@ -13,6 +13,7 @@ public interface LedgerRepository {
     List<LedgerEntries> findByTransferId(UUID transferId);
     List<LedgerEntries> findAll();
     Optional<LedgerEntries> findById(Long id);
+    Optional<LedgerEntries> findByTransferIdAndEntryTypeAndAccountNumber(UUID transferId, String entryType, String accountNumber);
     List<LedgerEntries> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
     List<LedgerEntries> findByAccountNumberAndCreatedAtBetween(String accountNumber, LocalDateTime start, LocalDateTime end);
     List<LedgerEntries> findByCreatedAtBefore(LocalDateTime date);

@@ -13,6 +13,7 @@ public class AccountMovementMapper {
 
     public AccountMovementEntity toEntity(AccountMovement movement) {
         AccountMovementEntity entity = new AccountMovementEntity();
+        entity.setTransferId(movement.getTransferId());
         entity.setMovementNumber(movement.getMovementNumber());
         entity.setAccountId(movement.getAccountId());
         entity.setType(movement.getType());
@@ -25,6 +26,7 @@ public class AccountMovementMapper {
     public AccountMovement toDomain(AccountMovementEntity entity) {
         AccountMovement movement = new AccountMovement();
         movement.setId(entity.getId());
+        movement.setTransferId(entity.getTransferId());
         movement.setMovementNumber(entity.getMovementNumber());
         movement.setAccountId(entity.getAccountId());
         movement.setType(entity.getType());

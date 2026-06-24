@@ -29,6 +29,9 @@ public class AccountMovementEntity {
     @Column(name = "movement_number", nullable = false, unique = true, length = 20)
     private String movementNumber;
 
+    @Column(name = "transfer_id", unique = true)
+    private UUID transferId;
+
     @Column(name = "account_id", nullable = false)
     private UUID accountId;
 
