@@ -1,28 +1,6 @@
 # Bank Simulator
 
-> Simulador bancario full-stack con microservicios en Java 21/Spring Boot, frontend React 19 + TypeScript + Tailwind CSS, y comunicación basada en eventos con Apache Kafka.
-
-[![Java](https://img.shields.io/badge/Java-21-blue)](https://openjdk.org/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.6-brightgreen)](https://spring.io/)
-[![React](https://img.shields.io/badge/React-19-61DAFB)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue)](https://www.typescriptlang.org/)
-[![Kafka](https://img.shields.io/badge/Apache%20Kafka-7.7.0-black)](https://kafka.apache.org/)
-
-## 📋 Descripción (CV)
-
-Proyecto demostrativo de **arquitectura de microservicios** en un dominio financiero real. Implementa:
-
-- **6 microservicios** con Spring Boot 4 y Java 21 (Gateway, Usuarios, Cuentas, Transferencias, Ledger, Notificaciones)
-- **Frontend SPA** con React 19, TypeScript 6, Vite 8 y Tailwind CSS 4
-- **Event-Driven Architecture** con Apache Kafka y Outbox Pattern
-- **CQRS** para separación de lecturas/escrituras
-- **Idempotencia** en transferencias vía `Idempotency-Key`
-- **Zero Trust Security** con JWT validado en gateway + cada servicio
-- **SSE** (Server-Sent Events) para notificaciones y libro mayor en tiempo real
-- **Hexagonal Architecture** en todos los servicios
-- **Docker Compose** para orquestación completa
-- **Operaciones bancarias**: depósitos (con/sin tarjeta), transferencias internas/externas, pagos con tarjeta, bloqueo de cuentas/tarjetas, PIN management
-
+Sistema bancario simulado con arquitectura de **microservicios**, comunicación **asíncrona basada en eventos** (Apache Kafka) y principios de **CQRS**, **Outbox Pattern** y **Zero Trust Security**.
 
 ---
 
@@ -346,23 +324,6 @@ api-gateway/.env         ← JWT secret
 3. Los archivos `.env` son leídos automáticamente por Docker Compose (`make up`)
 
 > **Nota:** Los `application.yaml` de cada servicio tienen valores por defecto que funcionan localmente mediante `mvnw spring-boot:run`. Las variables del `.env` sobreescriben esos defaults solo cuando se despliega con Docker.
-
-## 🎯 ¿Listo para CV?
-
-**Sí.** Este proyecto demuestra competencias clave para roles de **desarrollador full-stack** y **backend Java**:
-
-| Competencia | Evidencia |
-|------------|-----------|
-| Microservicios | 6 servicios con Spring Boot, API Gateway, comunicación síncrona/asíncrona |
-| Java Moderno | Java 21, Records, Pattern Matching, Streams, Optional |
-| Spring Ecosystem | Boot 4, Cloud Gateway, Data JPA, Security, Kafka |
-| Frontend Moderno | React 19 + TypeScript 6 + Vite 8 + Tailwind CSS 4 |
-| Arquitectura Limpia | Hexagonal Architecture, CQRS, Outbox Pattern |
-| Event-Driven | Apache Kafka, eventos de dominio, procesamiento asíncrono |
-| Seguridad | JWT, Zero Trust, BCrypt, Refresh Tokens |
-| DevOps | Docker Compose, Makefile, nginx, CI-ready |
-| Bases de Datos | MySQL 8, JPA, consultas optimizadas |
-| UI/UX | Diseño responsive, componentes reutilizables, SSE en tiempo real |
 
 ---
 
