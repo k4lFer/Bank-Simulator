@@ -74,15 +74,39 @@ Sistema bancario simulado con arquitectura de **microservicios**, comunicación 
 ---
 
 ### accounts-service — `:8082`
-**Gestión de cuentas bancarias, depósitos y movimientos.**
+**Gestión de cuentas bancarias, tarjetas, depósitos y movimientos.**
 
-- `POST /api/accounts/create` — Crear una cuenta bancaria
-- `POST /api/accounts/deposit` — Auto-depósito en cuenta propia
+#### Cuentas
+
+- `POST /api/accounts/create` — Crear cuenta bancaria (requiere `cardId` para vincular a una tarjeta)
 - `GET /api/accounts/me` — Listar cuentas del usuario autenticado
 - `GET /api/accounts/{id}` — Detalle de una cuenta
 - `GET /api/accounts/{id}/movements` — Movimientos de una cuenta
 - `PATCH /api/accounts/{id}/block` — Bloquear/desbloquear cuenta
 - `PUT /api/accounts/{id}/pin` — Cambiar PIN
+
+#### Tarjetas
+
+- `POST /api/cards/issue` — Emitir tarjeta (requiere `pin4` de 4 dígitos + `pin6` de 6 dígitos)
+- `GET /api/cards/me` — Listar tarjetas del usuario
+- `GET /api/cards/{id}` — Detalle de tarjeta con cuentas vinculadas
+- `PUT /api/cards/{id}/pin` — Cambiar PIN de tarjeta
+- `PATCH /api/cards/{id}/block` — Bloquear tarjeta
+- `POST /api/cards/{id}/accounts` — Vincular cuenta existente a una tarjeta
+
+#### Depósitos
+
+- `POST /api/accounts/deposit` — Auto-depósito (directo, sin tarjeta)
+- `POST /api/cards/{cardId}/deposit` — Depósito con tarjeta (requiere `pin4`, `pin6`, `accountNumber` vinculado)
+
+**Validaciones en depósito con tarjeta:**
+1. Tarjeta existe y pertenece al usuario
+2. Tarjeta está `ACTIVE`
+3. Tarjeta no está expirada
+4. `pin4` correcto
+5. `pin6` correcto
+6. Cuenta destino existe y está `ACTIVE`
+7. Cuenta está vinculada a la tarjeta
 
 **Escucha** `bank.transfer.events` para procesar transferencias entrantes (valida saldo, debita origen, acredita destino) y **publica** resultados en `bank.account.events` (AccountDebitedEvent, AccountCreditedEvent, AccountRejectedEvent).
 
@@ -93,7 +117,7 @@ Sistema bancario simulado con arquitectura de **microservicios**, comunicación 
 
 - `POST /api/transfers/internal` — Transferencia entre cuentas propias (requiere `Idempotency-Key`)
 - `POST /api/transfers/external` — Transferencia a cuenta de tercero (requiere `Idempotency-Key`)
-- `POST /api/transfers/card-payment` — Pago con tarjeta (requiere `Idempotency-Key`)
+- `POST /api/transfers/card-payment` — Pago con tarjeta (requiere `Idempotency-Key`, `pin4`, `pin6`, `cardId`)
 - `GET /api/transfers/{transferId}` — Estado de una transferencia
 - `GET /api/transfers/by-account/{accountNumber}` — Transferencias por cuenta
 
@@ -103,7 +127,7 @@ Sistema bancario simulado con arquitectura de **microservicios**, comunicación 
 
 ### ledger-service — `:8084`
 **Libro contable de doble entrada.**
-> ⚠️ **Estado: Scaffold** — Clases de dominio y entidad JPA creadas, pendiente la implementación del consumidor Kafka y los endpoints REST.
+> **Estado: Scaffold** — Clases de dominio y entidad JPA creadas, pendiente la implementación del consumidor Kafka y los endpoints REST.
 
 Registrará débitos y créditos de forma inmutable para permitir consultas de estado de cuenta, informes diarios y balances históricos.
 
@@ -111,7 +135,7 @@ Registrará débitos y créditos de forma inmutable para permitir consultas de e
 
 ### notifications-service — `:8085`
 **Notificaciones simuladas (email/SMS).**
-> ⚠️ **Estado: Scaffold** — Clase principal y configuración creadas, pendiente la implementación del consumidor Kafka y endpoints.
+> **Estado: Scaffold** — Clase principal y configuración creadas, pendiente la implementación del consumidor Kafka y endpoints.
 
 Consumirá eventos de transferencia para generar notificaciones de éxito/fallo.
 
@@ -126,11 +150,89 @@ Consumirá eventos de transferencia para generar notificaciones de éxito/fallo.
 | `/api/users/**` | users-service |
 | `/api/admin/**` | users-service |
 | `/api/accounts/**` | accounts-service |
+| `/api/cards/**` | accounts-service |
 | `/api/transfers/**` | transfers-service |
 | `/api/ledger/**` | ledger-service |
 | `/api/notifications/**` | notifications-service |
 
 Valida el JWT en cada petición entrante (excepto `/api/auth/**`) e inyecta las cabeceras `X-User-Id` y `X-User-Role` hacia los microservicios.
+
+---
+
+### frontend — `:5173`
+**Interfaz de usuario en React 19 + TypeScript + Vite + Tailwind CSS 4.**
+
+| Ruta | Vista |
+|------|-------|
+| `/` | Login con selección de rol |
+| `/login/cliente` | Login cliente |
+| `/login/admin` | Login admin |
+| `/registro` | Registro de usuario |
+| `/dashboard` | Panel principal (tarjetas → cuentas → transferencias recientes) |
+| `/accounts/:id` | Detalle de cuenta + movimientos |
+| `/admin` | Panel de administración |
+
+**Dashboard:**
+- Sección de **tarjetas** primero (emitir, cambiar PIN, bloquear)
+- Sección de **cuentas** después (crear vinculada a tarjeta, depositar, transferir)
+- **Depósito con tarjeta**: requiere selección de cuenta vinculada, `pin4` y `pin6`
+- **Transferencia externa con tarjeta**: requiere `pin4`, `pin6` y selección de cuenta origen vinculada
+
+---
+
+### shared-contracts
+**Librería compartida** (JAR plano, no Spring Boot) con DTOs, eventos de Kafka, componentes de seguridad y utilidades usadas por todos los microservicios. Incluye:
+
+- **Eventos:** `TransferRequestedEvent`, `AccountDebitedEvent`, `AccountCreditedEvent`, `AccountRejectedEvent`, `TransferCompletedEvent`, `TransferFailedEvent`, `AccountCreatedEvent`, `AccountDepositedEvent`, `UserCreatedEvent`
+- **Seguridad:** `JwtTokenValidator`, `JwtAuthFilter` — validación JWT en cada servicio
+- **Utilidades:** `ApiResponse<T>`, `Result<T>`, `ResponseHelper`, interfaces genéricas
+
+---
+
+### nginx — `:8888`
+**Proxy reverso** que expone el sistema completo en el puerto `8888`. Enruta `/api/` hacia el api-gateway, sirve Swagger UI y redirige el resto al frontend.
+
+---
+
+## Flujo de Tarjetas y Cuentas
+
+```
+User
+ ├── Emite tarjeta (POST /api/cards/issue)
+ │    → pin4 (4 dígitos) + pin6 (6 dígitos)
+ │    → PAN generado: 400000 + 10 dígitos random
+ │    → Expiración: 5 años desde emisión
+ │
+ ├── Crea cuenta (POST /api/accounts/create)
+ │    → Selecciona moneda (USD/EUR/PEN)
+ │    → Selecciona tarjeta para vincular
+ │    → La primera cuenta vinculada es la "principal"
+ │
+ ├── Deposita con tarjeta (POST /api/cards/{id}/deposit)
+ │    → Selecciona cuenta vinculada a la tarjeta
+ │    → Ingresa pin4 + pin6
+ │    → Valida: tarjeta activa, no expirada, PIN correcto, cuenta activa, vínculo existente
+ │
+ └── Transfiere con tarjeta (POST /api/transfers/card-payment)
+      → Selecciona cuenta origen vinculada a la tarjeta
+      → Ingresa pin4 + pin6 + cuenta destino
+      → Misma validación de tarjeta + cuenta origen
+```
+
+---
+
+## Validaciones de Seguridad
+
+### Cuentas bloqueadas
+- **Depósito**: rechazado si la cuenta destino está `BLOCKED` (tanto directo como con tarjeta)
+- **Transferencia interna**: rechazada si origen O destino está `BLOCKED` (pre-debit)
+- **Transferencia externa**: si destino está `BLOCKED`, se revierte el débito automáticamente (rollback)
+
+### Tarjetas
+- Solo se pueden usar tarjetas `ACTIVE`
+- Tarjetas expiradas son rechazadas
+- `pin4` y `pin6` validados contra valores almacenados
+- Cuenta destino debe estar vinculada a la tarjeta (tabla `card_accounts`)
 
 ---
 
@@ -167,35 +269,6 @@ Cada consumer tiene su propia estrategia de detección de duplicados usando el `
 ### Outbox Pattern
 
 El patrón outbox en transfers-service provee **al menos una vez** de publicación a Kafka. El poller reintenta eventos `FAILED`/`PENDING` periódicamente. La idempotencia en los consumers absorbe los duplicados que pudieran generarse por estos reintentos.
-
----
-
-### frontend — `:5173`
-**Interfaz de usuario en React 19 + TypeScript + Vite + Tailwind CSS 4.**
-
-| Ruta | Vista |
-|------|-------|
-| `/` | Login con selección de rol |
-| `/login/cliente` | Login cliente |
-| `/login/admin` | Login admin |
-| `/registro` | Registro de usuario |
-| `/dashboard` | Panel principal con resumen de cuentas |
-| `/accounts/:id` | Detalle de cuenta + movimientos |
-| `/admin` | Panel de administración |
-
----
-
-### shared-contracts
-**Librería compartida** (JAR plano, no Spring Boot) con DTOs, eventos de Kafka, componentes de seguridad y utilidades usadas por todos los microservicios. Incluye:
-
-- **Eventos:** `TransferRequestedEvent`, `AccountDebitedEvent`, `AccountCreditedEvent`, `AccountRejectedEvent`, `TransferCompletedEvent`, `TransferFailedEvent`, `AccountCreatedEvent`, `AccountDepositedEvent`, `UserCreatedEvent`
-- **Seguridad:** `JwtTokenValidator`, `JwtAuthFilter` — validación JWT en cada servicio
-- **Utilidades:** `ApiResponse<T>`, `Result<T>`, `ResponseHelper`, interfaces genéricas
-
----
-
-### nginx — `:8888`
-**Proxy reverso** que expone el sistema completo en el puerto `8888`. Enruta `/api/` hacia el api-gateway, sirve Swagger UI y redirige el resto al frontend.
 
 ---
 
@@ -254,7 +327,7 @@ make run-gateway
 | Servicio | Estado |
 |----------|--------|
 | users-service | ✅ Completamente implementado |
-| accounts-service | ✅ Completamente implementado |
+| accounts-service | ✅ Completamente implementado (cuentas, tarjetas pin4+pin6, depósitos, movimientos) |
 | transfers-service | ✅ Completamente implementado (Outbox + Idempotencia) |
 | api-gateway | ✅ Completamente implementado |
 | frontend | ✅ Funcionalidades principales implementadas |
