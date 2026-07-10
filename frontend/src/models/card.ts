@@ -12,7 +12,6 @@ export interface Card {
   pan: string
   expiryDate: string
   status: string
-  dailyLimit: number
   createdAt: string
 }
 

@@ -12,6 +12,7 @@ public class DepositCommand {
     private String accountNumber;
     private String currency;
     private String pin4;
+    private String pin6;
     private BigDecimal amount;
     private UUID cardId;
 }

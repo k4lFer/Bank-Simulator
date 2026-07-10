@@ -13,7 +13,6 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.UUID;
@@ -36,18 +35,15 @@ public class CardEntity {
     @Column(name = "expiry_date", nullable = false, length = 7)
     private YearMonth expiryDate;
 
-    //@Column(name = "pin6", nullable = false, length = 6)
-    //private String pin6;
-
     @Column(name = "pin4", nullable = false, length = 4)
     private String pin4;
+
+    @Column(name = "pin6", nullable = false, length = 6)
+    private String pin6;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private CardStatus status;
-
-    @Column(name = "daily_limit", nullable = false, precision = 18, scale = 2)
-    private BigDecimal dailyLimit;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

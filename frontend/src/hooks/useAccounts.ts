@@ -8,7 +8,7 @@ export function useAccounts() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    accountsApi.list()
+    accountsApi.listFromAccounts()
       .then((res) => setAccounts(res.data.data ?? []))
       .catch((err) => setError(err instanceof Error ? err.message : 'Error al cargar cuentas'))
       .finally(() => setLoading(false))

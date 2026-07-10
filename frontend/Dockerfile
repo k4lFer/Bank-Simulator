@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM node:24-alpine
 WORKDIR /app
 COPY package.json bun.lock ./
 RUN npm install --no-audit --no-fund

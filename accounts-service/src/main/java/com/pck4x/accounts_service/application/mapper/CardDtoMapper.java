@@ -21,7 +21,6 @@ public class CardDtoMapper {
                 maskPan(card.getPan()),
                 card.getExpiryDate(),
                 card.getStatus(),
-                card.getDailyLimit(),
                 card.getCreatedAt()
         );
     }
@@ -42,7 +41,6 @@ public class CardDtoMapper {
                 maskPan(card.getPan()),
                 card.getExpiryDate(),
                 card.getStatus(),
-                card.getDailyLimit(),
                 accounts,
                 card.getCreatedAt(),
                 card.getUpdatedAt()
@@ -71,7 +69,6 @@ public class CardDtoMapper {
                 maskPan(card.getPan()),
                 card.getExpiryDate(),
                 card.getStatus(),
-                card.getDailyLimit(),
                 linked,
                 card.getCreatedAt(),
                 card.getUpdatedAt()

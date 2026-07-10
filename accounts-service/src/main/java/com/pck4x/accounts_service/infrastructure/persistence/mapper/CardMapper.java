@@ -18,8 +18,8 @@ public class CardMapper {
         entity.setPan(card.getPan());
         entity.setExpiryDate(card.getExpiryDate() != null ? card.getExpiryDate() : java.time.YearMonth.now());
         entity.setPin4(card.getPin4());
+        entity.setPin6(card.getPin6());
         entity.setStatus(card.getStatus());
-        entity.setDailyLimit(card.getDailyLimit());
         entity.setCreatedAt(card.getCreatedAt() != null ? card.getCreatedAt() : LocalDateTime.now());
         entity.setUpdatedAt(LocalDateTime.now());
         return entity;
@@ -32,8 +32,8 @@ public class CardMapper {
         card.setPan(entity.getPan());
         card.setExpiryDate(entity.getExpiryDate());
         card.setPin4(entity.getPin4());
+        card.setPin6(entity.getPin6());
         card.setStatus(entity.getStatus());
-        card.setDailyLimit(entity.getDailyLimit());
         card.setCreatedAt(entity.getCreatedAt());
         card.setUpdatedAt(entity.getUpdatedAt());
         return card;

@@ -9,7 +9,6 @@ import com.pck4x.sharedcontracts.result.OutputPort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.Random;
 import java.util.UUID;
@@ -42,8 +41,9 @@ public class IssueCardService implements IssueCardUseCase {
         if (command.getPin4() == null || command.getPin4().length() != 4) {
             return OutputPort.badRequest("PIN must be 4 digits");
         }
-
-        var dailyLimit = command.getDailyLimit() != null ? command.getDailyLimit() : new BigDecimal("5000.00");
+        if (command.getPin6() == null || command.getPin6().length() != 6) {
+            return OutputPort.badRequest("PIN must be 6 digits");
+        }
 
         var card = new Card(
                 UUID.randomUUID(),
@@ -51,7 +51,7 @@ public class IssueCardService implements IssueCardUseCase {
                 generatePan(),
                 generateExpiry(),
                 command.getPin4(),
-                dailyLimit
+                command.getPin6()
         );
 
         card = cardRepository.save(card);

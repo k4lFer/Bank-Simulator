@@ -1,24 +1,19 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
+import { Users, Shield, UserCheck, Activity, BookOpen, RefreshCw } from 'lucide-react'
 import { adminApi } from '../api/admin-api'
 import { useAuth } from '../hooks/useAuth'
 import Button from '../components/ui/Button'
 import Spinner from '../components/ui/Spinner'
+import Card from '../components/ui/Card'
+import Badge from '../components/ui/Badge'
 import type { User } from '../models/user'
-
-function RoleBadge({ role }: { role: string }) {
-  const colors: Record<string, string> = { ADMIN: 'bg-purple-100 text-purple-700', CUSTOMER: 'bg-blue-100 text-blue-700' }
-  return <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${colors[role] ?? 'bg-gray-100 text-gray-600'}`}>{role}</span>
-}
-
-function StatusBadge({ active }: { active: boolean }) {
-  return <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${active ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{active ? 'Activo' : 'Inactivo'}</span>
-}
 
 export default function AdminDashboardPage() {
   const { user: me, logout } = useAuth()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [actionBusy, setActionBusy] = useState<string | null>(null)
 
   const loadUsers = () => {
     setLoading(true)
@@ -31,119 +26,128 @@ export default function AdminDashboardPage() {
   useEffect(loadUsers, [])
 
   const handleToggleStatus = async (u: User) => {
+    setActionBusy(u.id)
     try {
       await adminApi.toggleUserStatus(u.id, !u.active)
       toast.success(`Usuario ${!u.active ? 'activado' : 'desactivado'}`)
       loadUsers()
-    } catch {
-      toast.error('Error al cambiar estado')
-    }
+    } catch { toast.error('Error al cambiar estado') }
+    finally { setActionBusy(null) }
   }
 
   const handleToggleRole = async (u: User) => {
+    setActionBusy(u.id)
     const newRole = u.role === 'ADMIN' ? 'CUSTOMER' : 'ADMIN'
     try {
       await adminApi.updateUserRole(u.id, newRole)
       toast.success(`Rol cambiado a ${newRole}`)
       loadUsers()
-    } catch {
-      toast.error('Error al cambiar rol')
-    }
+    } catch { toast.error('Error al cambiar rol') }
+    finally { setActionBusy(null) }
   }
 
-  const stats = {
-    total: users.length,
-    admins: users.filter((u) => u.role === 'ADMIN').length,
-    customers: users.filter((u) => u.role === 'CUSTOMER').length,
-    active: users.filter((u) => u.active).length,
-  }
+  const stats = [
+    { label: 'Total', value: users.length, icon: Users, color: 'text-blue-600' },
+    { label: 'Administradores', value: users.filter((u) => u.role === 'ADMIN').length, icon: Shield, color: 'text-purple-600' },
+    { label: 'Clientes', value: users.filter((u) => u.role === 'CUSTOMER').length, icon: UserCheck, color: 'text-emerald-600' },
+    { label: 'Activos', value: users.filter((u) => u.active).length, icon: Activity, color: 'text-teal-600' },
+  ]
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <header className="bg-gray-800 text-white px-8 py-4 flex items-center gap-4">
-        <h1 className="text-lg font-semibold mr-auto">Bank Simulator — Admin</h1>
-        <a href="/admin/ledger" className="text-sm underline opacity-80 hover:opacity-100">Libro Mayor</a>
-        <span className="text-sm opacity-90">{me?.firstName} {me?.lastName}</span>
+      <header className="bg-white border-b border-gray-200 px-4 sm:px-8 py-4 flex items-center gap-4 sticky top-0 z-40">
+        <Shield className="w-6 h-6 text-blue-600" />
+        <h1 className="text-lg font-bold text-gray-900 mr-auto">Panel Admin</h1>
+        <a href="/admin/ledger" className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium">
+          <BookOpen className="w-4 h-4" /> Libro Mayor
+        </a>
+        <span className="text-sm text-gray-500">{me?.firstName} {me?.lastName}</span>
         <Button variant="ghost" onClick={logout}>Salir</Button>
       </header>
 
-      <main className="p-8 max-w-6xl mx-auto w-full">
-        {/* Stats */}
+      <main className="p-4 sm:p-8 max-w-6xl mx-auto w-full">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: 'Total usuarios', value: stats.total, color: 'bg-blue-500' },
-            { label: 'Administradores', value: stats.admins, color: 'bg-purple-500' },
-            { label: 'Clientes', value: stats.customers, color: 'bg-emerald-500' },
-            { label: 'Activos', value: stats.active, color: 'bg-teal-500' },
-          ].map((s) => (
-            <div key={s.label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col gap-1">
-              <span className="text-xs text-gray-400 uppercase tracking-wide">{s.label}</span>
-              <span className={`text-2xl font-bold ${s.color} bg-clip-text text-transparent`}>{s.value}</span>
-            </div>
+          {stats.map((s) => (
+            <Card key={s.label} padding="md">
+              <div className="flex items-start justify-between">
+                <div>
+                  <span className="text-xs text-gray-400 uppercase tracking-wide">{s.label}</span>
+                  <p className={`text-2xl font-bold mt-1 ${s.color}`}>{s.value}</p>
+                </div>
+                <s.icon className={`w-5 h-5 ${s.color} opacity-50`} />
+              </div>
+            </Card>
           ))}
         </div>
 
-        {/* Users table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-800">Usuarios</h2>
+        <Card padding="sm">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-gray-900">Usuarios</h2>
+              <p className="text-xs text-gray-400 mt-0.5">{users.length} registrados</p>
+            </div>
+            <button onClick={loadUsers} className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors" title="Recargar">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
 
           {loading ? (
-            <div className="p-8"><Spinner text="Cargando usuarios..." /></div>
+            <Spinner text="Cargando usuarios..." />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-gray-400 border-b border-gray-100 bg-gray-50">
-                    <th className="px-6 py-3 font-medium">Nombre</th>
-                    <th className="px-6 py-3 font-medium">Email</th>
-                    <th className="px-6 py-3 font-medium">Rol</th>
-                    <th className="px-6 py-3 font-medium">Estado</th>
-                    <th className="px-6 py-3 font-medium text-right">Acciones</th>
+                  <tr className="text-left text-gray-400 border-b border-gray-100 bg-gray-50/80">
+                    <th className="px-5 py-3 font-medium text-xs uppercase tracking-wider">Nombre</th>
+                    <th className="px-5 py-3 font-medium text-xs uppercase tracking-wider">Email</th>
+                    <th className="px-5 py-3 font-medium text-xs uppercase tracking-wider">Rol</th>
+                    <th className="px-5 py-3 font-medium text-xs uppercase tracking-wider">Estado</th>
+                    <th className="px-5 py-3 font-medium text-xs uppercase tracking-wider text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((u) => (
-                    <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                      <td className="px-6 py-3 font-medium text-gray-800">
-                        {u.firstName} {u.lastName}
+                    <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-3 font-medium text-gray-800">{u.firstName} {u.lastName}</td>
+                      <td className="px-5 py-3 text-gray-500">{u.email}</td>
+                      <td className="px-5 py-3">
+                        <Badge variant={u.role === 'ADMIN' ? 'purple' : 'info'} label={u.role} />
                       </td>
-                      <td className="px-6 py-3 text-gray-500">{u.email}</td>
-                      <td className="px-6 py-3"><RoleBadge role={u.role} /></td>
-                      <td className="px-6 py-3"><StatusBadge active={u.active} /></td>
-                      <td className="px-6 py-3 text-right">
+                      <td className="px-5 py-3">
+                        <Badge variant={u.active ? 'success' : 'danger'} label={u.active ? 'Activo' : 'Inactivo'} />
+                      </td>
+                      <td className="px-5 py-3 text-right">
                         <div className="flex gap-2 justify-end">
-                          <button
+                          <Button
+                            size="sm"
+                            variant="secondary"
                             onClick={() => handleToggleRole(u)}
-                            className="text-xs px-3 py-1.5 rounded border border-gray-200 hover:bg-gray-100 font-medium text-gray-600 transition-colors"
+                            disabled={actionBusy === u.id}
                           >
                             {u.role === 'ADMIN' ? 'Degradar' : 'Ascender'}
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={u.active ? 'danger' : 'success'}
                             onClick={() => handleToggleStatus(u)}
-                            className={`text-xs px-3 py-1.5 rounded border font-medium transition-colors ${
-                              u.active
-                                ? 'border-red-200 text-red-600 hover:bg-red-50'
-                                : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
-                            }`}
+                            disabled={actionBusy === u.id}
                           >
                             {u.active ? 'Desactivar' : 'Activar'}
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </tr>
                   ))}
                   {users.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-8 text-center text-gray-400">Sin usuarios</td>
+                      <td colSpan={5} className="px-5 py-8 text-center text-gray-400">Sin usuarios</td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
           )}
-        </div>
+        </Card>
       </main>
     </div>
   )

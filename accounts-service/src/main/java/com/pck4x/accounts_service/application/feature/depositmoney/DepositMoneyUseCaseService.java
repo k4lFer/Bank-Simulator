@@ -69,6 +69,12 @@ public class DepositMoneyUseCaseService implements DepositMoneyUseCase {
             if (!card.getPin4().equals(command.getPin4())) {
                 return OutputPort.badRequest("Invalid PIN");
             }
+            if (command.getPin6() == null || command.getPin6().length() != 6) {
+                return OutputPort.badRequest("6-digit PIN is required");
+            }
+            if (!card.getPin6().equals(command.getPin6())) {
+                return OutputPort.badRequest("Invalid 6-digit PIN");
+            }
 
             if (command.getAccountNumber() != null) {
                 account = accountRepository.findByAccountNumber(command.getAccountNumber()).orElse(null);

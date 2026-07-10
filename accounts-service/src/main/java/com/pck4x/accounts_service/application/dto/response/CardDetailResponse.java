@@ -2,7 +2,6 @@ package com.pck4x.accounts_service.application.dto.response;
 
 import com.pck4x.accounts_service.domain.enums.CardStatus;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
@@ -14,7 +13,6 @@ public record CardDetailResponse(
         String pan,
         YearMonth expiryDate,
         CardStatus status,
-        BigDecimal dailyLimit,
         List<LinkedAccountInfo> accounts,
         LocalDateTime createdAt,
         LocalDateTime updatedAt

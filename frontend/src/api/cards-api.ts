@@ -11,12 +11,12 @@ export const cardsApi = {
     return client.get<ApiResponse<CardDetail>>(`/cards/${id}`)
   },
 
-  issue(pin4: string, dailyLimit?: number) {
-    return client.post<ApiResponse<Card>>('/cards/issue', { pin4, dailyLimit })
+  issue(pin4: string, pin6: string) {
+    return client.post<ApiResponse<Card>>('/cards/issue', { pin4, pin6 })
   },
 
-  deposit(cardId: string, accountNumber: string, amount: number, pin4: string) {
-    return client.post<ApiResponse<{ movementNumber: string; accountNumber: string; type: string; amount: number; balanceAfter: number }>>(`/cards/${cardId}/deposit`, { accountNumber, amount, pin4 })
+  deposit(cardId: string, accountNumber: string, amount: number, pin4: string, pin6: string) {
+    return client.post<ApiResponse<{ movementNumber: string; accountNumber: string; type: string; amount: number; balanceAfter: number }>>(`/cards/${cardId}/deposit`, { accountNumber, amount, pin4, pin6 })
   },
 
   changePin(cardId: string, currentPin4: string, newPin4: string) {

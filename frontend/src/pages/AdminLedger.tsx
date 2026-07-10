@@ -5,21 +5,16 @@ import { ledgerApi } from '../api/ledger-api'
 import { useAuth } from '../hooks/useAuth'
 import Button from '../components/ui/Button'
 import Spinner from '../components/ui/Spinner'
+import Card from '../components/ui/Card'
+import Badge from '../components/ui/Badge'
+import { formatCurrency, formatDate, truncate } from '../lib/utils'
+import { RefreshCw, Search, BookOpen, BarChart3, Wallet } from 'lucide-react'
 import type { LedgerEntry, DailyReport, AccountBalance } from '../models/ledger'
 
 type Tab = 'live' | 'report' | 'balance'
 
 function EntryBadge({ type }: { type: string }) {
-  return (
-    <span className={`text-xs font-bold px-2 py-0.5 rounded ${type === 'CR' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
-      {type === 'CR' ? 'CR' : 'DR'}
-    </span>
-  )
-}
-
-function AmountCell({ amount, type }: { amount: number; type: string }) {
-  const isNegative = type === 'DR'
-  return <span className={isNegative ? 'text-red-600' : 'text-emerald-600'}>{isNegative ? '-' : '+'}${Math.abs(amount).toLocaleString()}</span>
+  return <Badge variant={type === 'CR' ? 'success' : 'warning'} label={type === 'CR' ? 'CR' : 'DR'} />
 }
 
 export default function AdminLedgerPage() {
@@ -28,30 +23,34 @@ export default function AdminLedgerPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <header className="bg-gray-800 text-white px-8 py-4 flex items-center gap-4">
-        <h1 className="text-lg font-semibold mr-auto">Bank Simulator — Libro Mayor</h1>
-        <a href="/admin" className="text-sm underline opacity-80 hover:opacity-100">Usuarios</a>
-        <span className="text-sm opacity-90">{user?.firstName} {user?.lastName}</span>
+      <header className="bg-white border-b border-gray-200 px-4 sm:px-8 py-4 flex items-center gap-4 sticky top-0 z-40">
+        <BookOpen className="w-6 h-6 text-blue-600" />
+        <h1 className="text-lg font-bold text-gray-900 mr-auto">Libro Mayor</h1>
+        <a href="/admin" className="text-sm text-blue-600 hover:text-blue-700 font-medium">Usuarios</a>
+        <span className="text-sm text-gray-500">{user?.firstName} {user?.lastName}</span>
         <Button variant="ghost" onClick={logout}>Salir</Button>
       </header>
 
       <div className="border-b border-gray-200 bg-white">
-        <div className="flex px-8 max-w-6xl mx-auto">
-          {(['live', 'report', 'balance'] as Tab[]).map((t) => (
+        <div className="flex px-4 sm:px-8 max-w-6xl mx-auto">
+          {([{ id: 'live', label: 'En Vivo', icon: RefreshCw },
+             { id: 'report', label: 'Reporte Diario', icon: BarChart3 },
+             { id: 'balance', label: 'Balance por Cuenta', icon: Wallet }] as const).map(({ id, label, icon: Icon }) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
-                tab === t ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              key={id}
+              onClick={() => setTab(id as Tab)}
+              className={`inline-flex items-center gap-2 px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                tab === id ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              {t === 'live' ? 'En Vivo' : t === 'report' ? 'Reporte Diario' : 'Balance por Cuenta'}
+              <Icon className="w-4 h-4" />
+              {label}
             </button>
           ))}
         </div>
       </div>
 
-      <main className="p-8 max-w-6xl mx-auto w-full">
+      <main className="p-4 sm:p-8 max-w-6xl mx-auto w-full">
         {tab === 'live' && <LiveStream />}
         {tab === 'report' && <DailyReportSection />}
         {tab === 'balance' && <AccountBalanceSection />}
@@ -60,12 +59,12 @@ export default function AdminLedgerPage() {
   )
 }
 
-/* ───── Live Stream ───── */
 function LiveStream() {
   const [entries, setEntries] = useState<LedgerEntry[]>([])
+  const [initialLoading, setInitialLoading] = useState(true)
   const [connected, setConnected] = useState(false)
   const es = useRef<EventSource | null>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const entryIds = useRef(new Set<number>())
 
   const connect = useCallback(() => {
     const token = localStorage.getItem('accessToken')
@@ -73,7 +72,10 @@ function LiveStream() {
 
     es.current.addEventListener('ledger-entry', (e) => {
       const entry: LedgerEntry = JSON.parse(e.data)
-      setEntries((prev) => [entry, ...prev].slice(0, 200))
+      if (!entryIds.current.has(entry.id)) {
+        entryIds.current.add(entry.id)
+        setEntries((prev) => [entry, ...prev].slice(0, 200))
+      }
     })
 
     es.current.onopen = () => setConnected(true)
@@ -81,6 +83,16 @@ function LiveStream() {
   }, [])
 
   useEffect(() => {
+    setInitialLoading(true)
+    ledgerApi.list()
+      .then((res) => {
+        const data = res.data.data ?? []
+        data.forEach((e) => entryIds.current.add(e.id))
+        setEntries(data.reverse())
+      })
+      .catch(() => toast.error('Error al cargar asientos contables'))
+      .finally(() => setInitialLoading(false))
+
     connect()
     return () => es.current?.close()
   }, [connect])
@@ -91,43 +103,49 @@ function LiveStream() {
         <h2 className="text-lg font-semibold text-gray-800">Asientos en tiempo real</h2>
         <span className={`inline-block w-2.5 h-2.5 rounded-full ${connected ? 'bg-emerald-500' : 'bg-red-500'}`} />
         <span className="text-xs text-gray-400">{connected ? 'Conectado' : 'Desconectado'}</span>
+        <span className="text-xs text-gray-400 ml-auto">{entries.length} asientos</span>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden max-h-[600px] overflow-y-auto">
-        {entries.length === 0 ? (
-          <div className="p-8 text-center text-gray-400">Esperando asientos contables...</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-gray-50">
-              <tr className="text-left text-gray-400 border-b border-gray-100">
-                <th className="px-4 py-3 font-medium">Cuenta</th>
-                <th className="px-4 py-3 font-medium">Tipo</th>
-                <th className="px-4 py-3 font-medium text-right">Monto</th>
-                <th className="px-4 py-3 font-medium">Moneda</th>
-                <th className="px-4 py-3 font-medium">Transferencia</th>
-                <th className="px-4 py-3 font-medium">Fecha</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((e) => (
-                <tr key={e.id} className="border-b border-gray-50 hover:bg-gray-50/50">
-                  <td className="px-4 py-3 font-medium text-gray-800">{e.accountNumber}</td>
-                  <td className="px-4 py-3"><EntryBadge type={e.entryType} /></td>
-                  <td className="px-4 py-3 text-right"><AmountCell amount={e.amount} type={e.entryType} /></td>
-                  <td className="px-4 py-3 text-gray-500">{e.currency}</td>
-                  <td className="px-4 py-3 text-gray-500 font-mono text-xs">{e.transferId ? e.transferId.slice(0, 8) + '...' : '-'}</td>
-                  <td className="px-4 py-3 text-gray-500">{new Date(e.createdAt).toLocaleString()}</td>
+      {initialLoading ? (
+        <Spinner text="Cargando asientos..." />
+      ) : (
+        <Card padding="sm" className="max-h-[600px] overflow-y-auto">
+          {entries.length === 0 ? (
+            <div className="p-8 text-center text-gray-400">Esperando asientos contables...</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-gray-50/95 backdrop-blur-sm">
+                <tr className="text-left text-gray-400 border-b border-gray-100">
+                  <th className="px-4 py-3 font-medium text-xs uppercase tracking-wider">Cuenta</th>
+                  <th className="px-4 py-3 font-medium text-xs uppercase tracking-wider">Tipo</th>
+                  <th className="px-4 py-3 font-medium text-xs uppercase tracking-wider text-right">Monto</th>
+                  <th className="px-4 py-3 font-medium text-xs uppercase tracking-wider">Moneda</th>
+                  <th className="px-4 py-3 font-medium text-xs uppercase tracking-wider">Transferencia</th>
+                  <th className="px-4 py-3 font-medium text-xs uppercase tracking-wider">Fecha</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+              </thead>
+              <tbody>
+                {entries.map((e) => (
+                  <tr key={e.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-gray-800 font-mono text-xs">{e.accountNumber}</td>
+                    <td className="px-4 py-3"><EntryBadge type={e.entryType} /></td>
+                    <td className={`px-4 py-3 text-right font-mono text-sm ${e.entryType === 'DR' ? 'text-red-600' : 'text-emerald-600'}`}>
+                      {e.entryType === 'DR' ? '-' : '+'}{formatCurrency(Math.abs(e.amount), e.currency)}
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">{e.currency}</td>
+                    <td className="px-4 py-3 text-gray-500 font-mono text-xs">{e.transferId ? truncate(e.transferId, 12) : '-'}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{formatDate(e.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Card>
+      )}
     </div>
   )
 }
 
-/* ───── Daily Report ───── */
 function DailyReportSection() {
   const today = new Date().toISOString().slice(0, 10)
   const [date, setDate] = useState(today)
@@ -152,60 +170,62 @@ function DailyReportSection() {
           type="date"
           value={date}
           onChange={(e) => setDate(e.target.value)}
-          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm"
+          className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
         />
       </div>
 
       {loading ? (
         <Spinner text="Cargando reporte..." />
       ) : !report ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">Sin datos para esta fecha</div>
+        <Card className="text-center py-8">
+          <BarChart3 className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+          <p className="text-gray-400">Sin datos para esta fecha</p>
+        </Card>
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
             {[
-              { label: 'Total cuentas', value: report.totalAccounts },
-              { label: 'Total asientos', value: report.totalEntries },
-              { label: 'Fecha', value: report.date },
+              { label: 'Cuentas', value: report.totalAccounts, color: 'text-blue-600' },
+              { label: 'Asientos', value: report.totalEntries, color: 'text-emerald-600' },
+              { label: 'Fecha', value: report.date, color: 'text-gray-600' },
             ].map((s) => (
-              <div key={s.label} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex flex-col gap-1">
-                <span className="text-xs text-gray-400 uppercase tracking-wide">{s.label}</span>
-                <span className="text-xl font-bold text-gray-800">{s.value}</span>
-              </div>
+              <Card key={s.label} padding="sm">
+                <span className="text-xs text-gray-400 uppercase tracking-wide block mb-1">{s.label}</span>
+                <span className={`text-xl font-bold ${s.color}`}>{s.value}</span>
+              </Card>
             ))}
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <Card padding="sm">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-400 border-b border-gray-100 bg-gray-50">
-                  <th className="px-4 py-3 font-medium">Cuenta</th>
-                  <th className="px-4 py-3 font-medium text-right">Saldo Inicial</th>
-                  <th className="px-4 py-3 font-medium text-right">Débitos</th>
-                  <th className="px-4 py-3 font-medium text-right">Créditos</th>
-                  <th className="px-4 py-3 font-medium text-right">Saldo Final</th>
+                <tr className="text-left text-gray-400 border-b border-gray-100 bg-gray-50/80">
+                  <th className="px-4 py-3 font-medium text-xs uppercase tracking-wider">Cuenta</th>
+                  <th className="px-4 py-3 font-medium text-xs uppercase tracking-wider text-right">Saldo Inicial</th>
+                  <th className="px-4 py-3 font-medium text-xs uppercase tracking-wider text-right">Débitos</th>
+                  <th className="px-4 py-3 font-medium text-xs uppercase tracking-wider text-right">Créditos</th>
+                  <th className="px-4 py-3 font-medium text-xs uppercase tracking-wider text-right">Saldo Final</th>
                 </tr>
               </thead>
               <tbody>
                 {report.accounts.map((a) => (
                   <tr key={a.accountNumber} className="border-b border-gray-50 hover:bg-gray-50/50">
-                    <td className="px-4 py-3 font-medium text-gray-800">{a.accountNumber}</td>
-                    <td className="px-4 py-3 text-right font-mono">${a.openingBalance.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right font-mono text-red-600">${a.totalDebits.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right font-mono text-emerald-600">${a.totalCredits.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right font-mono font-semibold">{a.closingBalance < 0 ? '-' : ''}${Math.abs(a.closingBalance).toLocaleString()}</td>
+                    <td className="px-4 py-3 font-medium text-gray-800 font-mono text-xs">{a.accountNumber}</td>
+                    <td className="px-4 py-3 text-right font-mono">{formatCurrency(a.openingBalance, a.currency)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-red-600">{formatCurrency(a.totalDebits, a.currency)}</td>
+                    <td className="px-4 py-3 text-right font-mono text-emerald-600">{formatCurrency(a.totalCredits, a.currency)}</td>
+                    <td className="px-4 py-3 text-right font-mono font-semibold">{formatCurrency(a.closingBalance, a.currency)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </Card>
         </div>
       )}
     </div>
   )
 }
 
-/* ───── Account Balance ───── */
 function AccountBalanceSection() {
   const [accountNumber, setAccountNumber] = useState('')
   const [balance, setBalance] = useState<AccountBalance | null>(null)
@@ -225,9 +245,7 @@ function AccountBalanceSection() {
       } else {
         toast.error('Error al consultar balance')
       }
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   return (
@@ -235,41 +253,45 @@ function AccountBalanceSection() {
       <h2 className="text-lg font-semibold text-gray-800">Balance por Cuenta</h2>
 
       <div className="flex gap-2">
-        <input
-          type="text"
-          value={accountNumber}
-          onChange={(e) => setAccountNumber(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-          placeholder="Ingrese número de cuenta"
-          className="border border-gray-300 rounded-lg px-4 py-2 text-sm flex-1 max-w-sm"
-        />
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            value={accountNumber}
+            onChange={(e) => setAccountNumber(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            placeholder="Ingrese número de cuenta..."
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+          />
+        </div>
         <Button onClick={handleSearch}>Consultar</Button>
       </div>
 
       {loading && <Spinner text="Consultando balance..." />}
 
       {!loading && searched && !balance && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center text-gray-400">
-          No se encontraron asientos para esta cuenta
-        </div>
+        <Card className="text-center py-8">
+          <Wallet className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+          <p className="text-gray-400">No se encontraron asientos para esta cuenta</p>
+        </Card>
       )}
 
       {!loading && balance && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 max-w-md">
+        <Card className="max-w-md">
           <div className="grid grid-cols-2 gap-4">
             {[
-              { label: 'Cuenta', value: balance.accountNumber },
-              { label: 'Moneda', value: balance.currency },
-              { label: 'Balance', value: `$${balance.balance.toLocaleString()}`, big: true },
-              { label: 'Consultado', value: new Date(balance.calculatedAt).toLocaleString() },
+              { label: 'Cuenta', value: balance.accountNumber, span: false },
+              { label: 'Moneda', value: balance.currency, span: false },
+              { label: 'Balance', value: formatCurrency(balance.balance, balance.currency), span: true, big: true },
+              { label: 'Consultado', value: formatDate(balance.calculatedAt), span: true },
             ].map((s) => (
-              <div key={s.label} className={s.big ? 'col-span-2' : ''}>
+              <div key={s.label} className={s.span ? 'col-span-2' : ''}>
                 <span className="text-xs text-gray-400 uppercase tracking-wide block">{s.label}</span>
                 <span className={`${s.big ? 'text-2xl' : 'text-base'} font-bold text-gray-800`}>{s.value}</span>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   )
