@@ -23,14 +23,14 @@ Sistema bancario simulado con arquitectura de **microservicios**, comunicación 
                     │                  │      │                  │
                     └───────────┐      │      │     ┌────────────┘
                                 │      │      │     │
-                           ledger:8084   notifications:8085
-                         (double-entry    (email/SMS alerts)
-                          accounting)         [scaffold]
-                            [scaffold]
+                       ledger:8084   notifications:8085
+                     (libro contable    (notificaciones
+                      + SSE)             SSE en tiempo real)
 
               ╔══════════════════════════════════════════════╗
               ║              Apache Kafka                     ║
               ║  bank.transfer.events | bank.account.events   ║
+              ║  bank.notification.events | bank.user.events   ║
               ╚══════════════════════════════════════════════╝
 
               ╔══════════════════════════════════════════════╗
@@ -46,7 +46,7 @@ Sistema bancario simulado con arquitectura de **microservicios**, comunicación 
 |--------|-------------|
 | **Event-Driven Architecture** | Comunicación asíncrona entre servicios mediante Apache Kafka |
 | **Outbox Pattern** | Las órdenes de transferencia se persisten primero en una tabla `outbox` y luego se publican a Kafka mediante un `@Scheduled` poller, garantizando consistencia |
-| **CQRS (ligero)** | Lado de escritura en accounts-service + transfers-service; lado de lectura en users-service (proyecciones de saldos) y ledger-service (libro contable) |
+| **CQRS (ligero)** | Lado de escritura en accounts-service + transfers-service; lado de lectura en ledger-service (libro contable con SSE) |
 | **Database per Service** | Cada microservicio tiene su propia base de datos MySQL |
 | **Zero Trust Security** | Validación JWT tanto en el API Gateway como en cada microservicio de forma individual |
 | **Hexagonal Architecture** | Los servicios siguen clean architecture con puertos/adaptadores y paquetes organizados por dominio |
@@ -69,7 +69,7 @@ Sistema bancario simulado con arquitectura de **microservicios**, comunicación 
 - `PUT /api/admin/users/{id}/status` — Activar/desactivar usuario (admin)
 - `PUT /api/admin/users/{id}/role` — Cambiar rol de usuario (admin)
 
-**Consume eventos de Kafka** `bank.account.events` para mantener proyecciones de saldo de cuentas (tabla `AccountProjection`).
+**Publica** `UserCreatedEvent` en `bank.user.events` al registrar usuarios.
 
 ---
 
@@ -83,7 +83,6 @@ Sistema bancario simulado con arquitectura de **microservicios**, comunicación 
 - `GET /api/accounts/{id}` — Detalle de una cuenta
 - `GET /api/accounts/{id}/movements` — Movimientos de una cuenta
 - `PATCH /api/accounts/{id}/block` — Bloquear/desbloquear cuenta
-- `PUT /api/accounts/{id}/pin` — Cambiar PIN
 
 #### Tarjetas
 
@@ -117,7 +116,7 @@ Sistema bancario simulado con arquitectura de **microservicios**, comunicación 
 
 - `POST /api/transfers/internal` — Transferencia entre cuentas propias (requiere `Idempotency-Key`)
 - `POST /api/transfers/external` — Transferencia a cuenta de tercero (requiere `Idempotency-Key`)
-- `POST /api/transfers/card-payment` — Pago con tarjeta (requiere `Idempotency-Key`, `pin4`, `pin6`, `cardId`)
+- `POST /api/transfers/card-payment` — Pago con tarjeta (requiere `Idempotency-Key`, `pin4`, `cardId`)
 - `GET /api/transfers/{transferId}` — Estado de una transferencia
 - `GET /api/transfers/by-account/{accountNumber}` — Transferencias por cuenta
 
@@ -126,10 +125,17 @@ Sistema bancario simulado con arquitectura de **microservicios**, comunicación 
 ---
 
 ### ledger-service — `:8084`
-**Libro contable de doble entrada.**
-> **Estado: Scaffold** — Clases de dominio y entidad JPA creadas, pendiente la implementación del consumidor Kafka y los endpoints REST.
+**Libro contable de doble entrada con SSE.**
 
-Registrará débitos y créditos de forma inmutable para permitir consultas de estado de cuenta, informes diarios y balances históricos.
+- `GET /api/ledger` — Todos los asientos contables
+- `GET /api/ledger/{id}` — Asiento por ID
+- `GET /api/ledger/by-account?accountNumber=` — Asientos de una cuenta
+- `GET /api/ledger/by-transfer?transferId=` — Asientos de una transferencia
+- `GET /api/ledger/daily-report?date=` — Reporte diario (saldos apertura/cierre, débitos, créditos)
+- `GET /api/ledger/balance?accountNumber=` — Balance calculado de una cuenta
+- `GET /api/ledger/stream?token=<jwt>` — SSE en tiempo real (solo admin)
+
+**Flujo:** Consume `bank.account.events` vía Kafka → persiste asientos DR/CR en MySQL → push vía SSE. Solo admin puede consultar.
 
 ---
 
@@ -181,14 +187,14 @@ Valida el JWT en cada petición entrante (excepto `/api/auth/**`) e inyecta las 
 - Sección de **tarjetas** primero (emitir, cambiar PIN, bloquear)
 - Sección de **cuentas** después (crear vinculada a tarjeta, depositar, transferir)
 - **Depósito con tarjeta**: requiere selección de cuenta vinculada, `pin4` y `pin6`
-- **Transferencia externa con tarjeta**: requiere `pin4`, `pin6` y selección de cuenta origen vinculada
+- **Transferencia externa con tarjeta**: requiere `pin4` y selección de cuenta origen vinculada
 
 ---
 
 ### shared-contracts
 **Librería compartida** (JAR plano, no Spring Boot) con DTOs, eventos de Kafka, componentes de seguridad y utilidades usadas por todos los microservicios. Incluye:
 
-- **Eventos:** `TransferRequestedEvent`, `AccountDebitedEvent`, `AccountCreditedEvent`, `AccountRejectedEvent`, `TransferCompletedEvent`, `TransferFailedEvent`, `AccountCreatedEvent`, `AccountDepositedEvent`, `UserCreatedEvent`
+- **Eventos:** `TransferRequestedEvent`, `AccountDebitedEvent`, `AccountCreditedEvent`, `AccountRejectedEvent`, `TransferCompletedEvent`, `TransferFailedEvent`, `AccountCreatedEvent`, `AccountDepositedEvent`, `UserCreatedEvent`, `TransferNotificationEvent`
 - **Seguridad:** `JwtTokenValidator`, `JwtAuthFilter` — validación JWT en cada servicio
 - **Utilidades:** `ApiResponse<T>`, `Result<T>`, `ResponseHelper`, interfaces genéricas
 
@@ -220,7 +226,7 @@ User
  │
  └── Transfiere con tarjeta (POST /api/transfers/card-payment)
       → Selecciona cuenta origen vinculada a la tarjeta
-      → Ingresa pin4 + pin6 + cuenta destino
+      → Ingresa pin4 + cuenta destino
       → Misma validación de tarjeta + cuenta origen
 ```
 
@@ -337,10 +343,10 @@ make run-gateway
 | api-gateway | ✅ Completamente implementado |
 | frontend | ✅ Funcionalidades principales implementadas |
 | shared-contracts | ✅ Completamente implementado |
-| ledger-service | 🔧 Scaffold (dominio creado, falta consumidor Kafka y endpoints) |
+| ledger-service | ✅ Completamente implementado (Kafka → MySQL → SSE, solo admin) |
 | notifications-service | ✅ Completamente implementado (Kafka → MySQL → SSE) |
 | CI/CD (GitHub Actions) | ❌ Pendiente |
-| Currency Exchange Service | 📋 Planificado (ver `plan-exchange-service.md`) |
+| Currency Exchange Service | 📋 Planificado |
 
 ---
 
