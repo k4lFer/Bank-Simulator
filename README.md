@@ -134,10 +134,15 @@ Registrará débitos y créditos de forma inmutable para permitir consultas de e
 ---
 
 ### notifications-service — `:8085`
-**Notificaciones simuladas (email/SMS).**
-> **Estado: Scaffold** — Clase principal y configuración creadas, pendiente la implementación del consumidor Kafka y endpoints.
+**Notificaciones en tiempo real con SSE.**
 
-Consumirá eventos de transferencia para generar notificaciones de éxito/fallo.
+- `GET /api/notifications` — Listar notificaciones del usuario (paginado)
+- `GET /api/notifications/unread-count` — Conteo de no leídas
+- `PATCH /api/notifications/{id}/read` — Marcar como leída
+- `PATCH /api/notifications/read-all` — Marcar todas como leídas
+- `GET /api/notifications/stream?token=<jwt>` — SSE en tiempo real
+
+**Flujo:** Consume `bank.notification.events` vía Kafka → persiste en MySQL → push inmediato al navegador vía `SseEmitter`. No envía emails ni SMS.
 
 ---
 
@@ -333,7 +338,7 @@ make run-gateway
 | frontend | ✅ Funcionalidades principales implementadas |
 | shared-contracts | ✅ Completamente implementado |
 | ledger-service | 🔧 Scaffold (dominio creado, falta consumidor Kafka y endpoints) |
-| notifications-service | 🔧 Scaffold (estructura creada, falta implementación) |
+| notifications-service | ✅ Completamente implementado (Kafka → MySQL → SSE) |
 | CI/CD (GitHub Actions) | ❌ Pendiente |
 | Currency Exchange Service | 📋 Planificado (ver `plan-exchange-service.md`) |
 
