@@ -89,26 +89,36 @@ public class AccountEventConsumer {
             log.warn("Received AccountRejectedEvent: transferId={}, account={}, reason={}",
                     e.getTransferId(), e.getAccountNumber(), e.getReason());
             transferRepository.findByTransferId(e.getTransferId()).ifPresent(transfer -> {
-                if (transfer.getStatus() != TransferStatus.PENDING) {
+                TransferStatus current = transfer.getStatus();
+
+                // Fase 0.2: un rechazo despues del debito NO se descarta.
+                // PENDING  -> REJECTED   (nunca se debito)
+                // DEBITED  -> COMPENSATED (el debito ya fue revertido por accounts-service)
+                if (current != TransferStatus.PENDING && current != TransferStatus.DEBITED) {
                     log.info("Ignored duplicate AccountRejectedEvent: transferId={}, currentStatus={}",
-                            e.getTransferId(), transfer.getStatus());
+                            e.getTransferId(), current);
                     return;
                 }
-                transfer.setStatus(TransferStatus.REJECTED);
-                transfer.setRejectionReason(e.getReason());
+
+                boolean wasDebited = current == TransferStatus.DEBITED;
+                transfer.setStatus(wasDebited ? TransferStatus.COMPENSATED : TransferStatus.REJECTED);
+                transfer.setRejectionReason(wasDebited
+                        ? e.getReason() + " (debito revertido)"
+                        : e.getReason());
                 transfer.setUpdatedAt(java.time.LocalDateTime.now());
                 transfer = transferRepository.save(transfer);
                 eventPublisher.publishEvent(new TransferStatusEvent(transfer));
 
-                // Notify sender about rejection
                 kafkaPublisher.publish("bank.notification.events",
                         new TransferNotificationEvent(transfer.getUserId(), null,
-                                "TRANSFER_REJECTED", "Transferencia rechazada",
+                                wasDebited ? "TRANSFER_COMPENSATED" : "TRANSFER_REJECTED",
+                                wasDebited ? "Transferencia revertida" : "Transferencia rechazada",
                                 "Tu transferencia de " + e.getAmount() + " " + e.getCurrency()
-                                        + " fue rechazada: " + e.getReason(),
+                                        + (wasDebited ? " fue cancelada y el debito revertido: "
+                                                      : " fue rechazada: ") + e.getReason(),
                                 e.getAmount(), e.getCurrency(), e.getAccountNumber()));
 
-                log.info("Transfer {} updated to REJECTED", e.getTransferId());
+                log.info("Transfer {} updated to {}", e.getTransferId(), transfer.getStatus());
             });
         } else {
             log.debug("Ignored event type: {}", event.getClass().getSimpleName());

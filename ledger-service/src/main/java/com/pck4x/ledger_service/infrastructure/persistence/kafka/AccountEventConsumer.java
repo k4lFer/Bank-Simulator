@@ -58,9 +58,13 @@ public class AccountEventConsumer {
             log.warn("Rejected event: transferId={}, account={}, reason={}",
                     e.getTransferId(), e.getAccountNumber(), e.getReason());
 
-            if (e.getAmount() != null && e.getCurrency() != null) {
+            // Fase 0.2: solo la compensacion de un debito genera asiento.
+            // Un rechazo previo al debito (fondos, cuenta, PIN) nunca genera CR.
+            boolean isReversal = e.getReason() != null
+                    && (e.getReason().contains("reversed") || e.getReason().contains("revertido"));
+            if (isReversal && e.getAmount() != null && e.getCurrency() != null) {
                 saveEntry(e.getTransferId(), e.getAccountNumber(), "CR", e.getAmount(), e.getCurrency());
-                log.info("Reversal entry saved for rejected transfer: account={}, amount={}",
+                log.info("Reversal entry saved for compensated transfer: account={}, amount={}",
                         e.getAccountNumber(), e.getAmount());
             }
 

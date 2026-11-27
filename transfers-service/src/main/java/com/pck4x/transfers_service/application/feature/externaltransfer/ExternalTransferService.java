@@ -13,6 +13,7 @@ import com.pck4x.transfers_service.domain.TransferEvent;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Service
@@ -43,6 +44,15 @@ public class ExternalTransferService implements ExternalTransferUseCase {
 
         if (isCardPayment && (input.getPin4() == null || input.getPin4().isBlank())) {
             return OutputPort.badRequest("PIN is required for card payments");
+        }
+
+        // Fase 0.6: validar antes de persistir.
+        if (input == null || input.getAmount() == null
+                || input.getAmount().compareTo(BigDecimal.ZERO) <= 0
+                || input.getFromAccount() == null || input.getFromAccount().isBlank()
+                || input.getToAccount() == null || input.getToAccount().isBlank()
+                || input.getCurrency() == null || input.getCurrency().isBlank()) {
+            return OutputPort.badRequest("Amount must be positive and account/currency fields are required");
         }
 
         var transferId = idempotencyKey;
@@ -78,10 +88,8 @@ public class ExternalTransferService implements ExternalTransferUseCase {
             var outboxEvent = new TransferEvent(transferId, "TransferRequested", payload);
             transferEventRepository.save(outboxEvent);
         } catch (JsonProcessingException e) {
-            return OutputPort.failure(
-                    org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Failed to serialize transfer event"
-            );
+            // Fase 0.4: propagar para que @Transactional revierta tambien la transferencia.
+            throw new IllegalStateException("Failed to serialize transfer event", e);
         }
 
         return OutputPort.created(toResponse(transfer), isCardPayment ? "Card payment initiated" : "External transfer initiated");

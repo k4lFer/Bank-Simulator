@@ -21,6 +21,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.YearMonth;
 
 @Component
@@ -58,6 +59,15 @@ public class TransferEventConsumer {
 
         if (movementRepository.findByTransferId(event.getTransferId()).isPresent()) {
             log.info("Duplicate TransferRequestedEvent ignored: transferId={}", event.getTransferId());
+            return;
+        }
+
+        // Fase 0.6: importes y moneda invalidos se rechazan antes de tocar saldos.
+        if (event.getAmount() == null || event.getAmount().compareTo(BigDecimal.ZERO) <= 0
+                || event.getCurrency() == null || event.getCurrency().isBlank()) {
+            eventPublisher.publish("bank.account.events",
+                    new AccountRejectedEvent(event.getTransferId(), event.getFromAccount(),
+                            "Invalid amount or currency", event.getAmount(), event.getCurrency()));
             return;
         }
 
@@ -122,7 +132,8 @@ public class TransferEventConsumer {
         }
 
         // 1. Validar cuenta origen
-        var optFromAccount = accountRepository.findByAccountNumber(event.getFromAccount());
+        // Fase 0.5: bloquear la fila origen para evitar sobredebitos concurrentes.
+        var optFromAccount = accountRepository.findByAccountNumberForUpdate(event.getFromAccount());
         if (optFromAccount.isEmpty()) {
             eventPublisher.publish("bank.account.events",
                     new AccountRejectedEvent(event.getTransferId(), event.getFromAccount(),
@@ -144,6 +155,16 @@ public class TransferEventConsumer {
             eventPublisher.publish("bank.account.events",
                     new AccountRejectedEvent(event.getTransferId(), event.getFromAccount(),
                             "Source account does not belong to user", event.getAmount(), event.getCurrency()));
+            return;
+        }
+
+        // Fase 0.6: la moneda del destino debe coincidir con la de la operacion.
+        var optToAccountForCurrency = accountRepository.findByAccountNumber(event.getToAccount());
+        if (optToAccountForCurrency.isPresent()
+                && !optToAccountForCurrency.get().getCurrency().equals(event.getCurrency())) {
+            eventPublisher.publish("bank.account.events",
+                    new AccountRejectedEvent(event.getTransferId(), event.getToAccount(),
+                            "Currency mismatch", event.getAmount(), event.getCurrency()));
             return;
         }
 

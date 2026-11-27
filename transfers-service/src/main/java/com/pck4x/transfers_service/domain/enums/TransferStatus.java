@@ -5,5 +5,6 @@ public enum TransferStatus {
     DEBITED,
     COMPLETED,
     FAILED,
-    REJECTED
+    REJECTED,
+    COMPENSATED
 }

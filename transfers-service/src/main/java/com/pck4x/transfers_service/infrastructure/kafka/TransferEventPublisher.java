@@ -6,6 +6,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.TimeUnit;
+
 @Component
 public class TransferEventPublisher implements EventPublisher {
 
@@ -19,13 +21,20 @@ public class TransferEventPublisher implements EventPublisher {
 
     @Override
     public void publish(String topic, Object event) {
-        kafkaTemplate.send(topic, event).whenComplete((result, ex) -> {
-            if (ex != null) {
-                log.error("Failed to publish event to topic {}: {}", topic, ex.getMessage(), ex);
-            } else {
-                log.info("Event published to topic {}: partition={}, offset={}",
-                        topic, result.getRecordMetadata().partition(), result.getRecordMetadata().offset());
-            }
-        });
+        // Fase 0.3: esperar el ACK antes de devolver. El outbox solo marca SENT
+        // cuando esta llamada termina sin excepcion. Si falla, el poller deja el
+        // evento en PENDING para reintentarlo en el siguiente tick.
+        try {
+            var result = kafkaTemplate.send(topic, event).get(10, TimeUnit.SECONDS);
+            log.info("Event published to topic {}: partition={}, offset={}",
+                    topic,
+                    result.getRecordMetadata().partition(),
+                    result.getRecordMetadata().offset());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while publishing event to " + topic, e);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to publish event to " + topic, e);
+        }
     }
 }

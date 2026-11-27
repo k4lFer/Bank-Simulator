@@ -40,6 +40,12 @@ public class AccountRepositoryAdapter implements AccountRepository {
     }
 
     @Override
+    public Optional<Account> findByAccountNumberForUpdate(String accountNumber) {
+        return jpaAccountRepository.findByAccountNumberForUpdate(accountNumber)
+                .map(AccountMapper.INSTANCE::toDomain);
+    }
+
+    @Override
     public List<Account> findByUserId(UUID userId) {
         return jpaAccountRepository.findByUserId(userId)
                 .stream()

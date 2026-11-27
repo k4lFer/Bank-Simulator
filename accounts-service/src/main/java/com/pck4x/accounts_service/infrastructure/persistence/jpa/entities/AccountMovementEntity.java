@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -17,7 +18,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "account_movements")
+@Table(
+        name = "account_movements",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_movement_transfer_account_type",
+                columnNames = {"transfer_id", "account_id", "type"}
+        )
+)
 @Getter
 @Setter
 public class AccountMovementEntity {
@@ -29,7 +36,7 @@ public class AccountMovementEntity {
     @Column(name = "movement_number", nullable = false, unique = true, length = 20)
     private String movementNumber;
 
-    @Column(name = "transfer_id", unique = true)
+    @Column(name = "transfer_id")
     private UUID transferId;
 
     @Column(name = "account_id", nullable = false)
