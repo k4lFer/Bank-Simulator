@@ -9,7 +9,14 @@ import java.util.UUID;
 
 @Getter
 @Setter
-public class TransferNotificationEvent implements Serializable {
+public class TransferNotificationEvent implements Serializable, DomainEvent {
+    private UUID eventId = UUID.randomUUID();
+
+    public UUID getEventId() {
+        return eventId;
+    }
+    private UUID correlationId;
+
     private UUID userId;
     private UUID relatedUserId;
     private String type;

@@ -13,9 +13,16 @@ spring:
       connection-timeout: 5000
       max-lifetime: 600000
 
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    baseline-description: "esquema previo creado por ddl-auto=update"
+    locations: classpath:db/migration
+
   jpa:
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update}
+      ddl-auto: ${JPA_DDL_AUTO:validate}
     show-sql: false
     properties:
       hibernate:
@@ -56,3 +63,7 @@ springdoc:
   servers:
     - url: http://localhost:8000
       description: Bank Simulator API Gateway
+
+logging:
+  pattern:
+    level: "%5p [%X{correlationId}]"

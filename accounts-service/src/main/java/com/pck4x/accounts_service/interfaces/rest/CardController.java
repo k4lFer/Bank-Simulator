@@ -16,15 +16,14 @@ import com.pck4x.accounts_service.application.feature.issuecard.IssueCardUseCase
 import com.pck4x.accounts_service.application.feature.linkaccount.LinkAccountUseCase;
 import com.pck4x.sharedcontracts.helper.ResponseHelper;
 import com.pck4x.sharedcontracts.objects.ApiResponse;
-import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -62,14 +61,14 @@ public class CardController {
     @PostMapping("/issue")
     public ResponseEntity<ApiResponse<CardResponse>> issueCard(
             @RequestBody IssueCardCommand command,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = issueCardUseCase.execute(command, userId);
         return ResponseHelper.toResponse(result);
     }
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<List<CardResponse>>> getMyCards(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = getCardsByUserUseCase.execute(userId);
         return ResponseHelper.toResponse(result);
     }
@@ -77,7 +76,7 @@ public class CardController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<CardDetailResponse>> getCard(
             @PathVariable UUID id,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = getCardUseCase.execute(id, userId);
         return ResponseHelper.toResponse(result);
     }
@@ -85,7 +84,7 @@ public class CardController {
     @PatchMapping("/{id}/block")
     public ResponseEntity<ApiResponse<CardResponse>> blockCard(
             @PathVariable UUID id,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = blockCardUseCase.execute(id, userId);
         return ResponseHelper.toResponse(result);
     }
@@ -94,7 +93,7 @@ public class CardController {
     public ResponseEntity<ApiResponse<CardResponse>> changePin(
             @PathVariable UUID id,
             @RequestBody ChangePinCommand command,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = changeCardPinUseCase.execute(id, command, userId);
         return ResponseHelper.toResponse(result);
     }
@@ -103,7 +102,7 @@ public class CardController {
     public ResponseEntity<ApiResponse<CardDetailResponse>> linkAccount(
             @PathVariable UUID id,
             @RequestBody LinkAccountCommand command,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = linkAccountUseCase.execute(id, command, userId);
         return ResponseHelper.toResponse(result);
     }
@@ -112,7 +111,7 @@ public class CardController {
     public ResponseEntity<ApiResponse<DepositResponse>> cardDeposit(
             @PathVariable UUID id,
             @RequestBody DepositCommand command,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         command.setCardId(id);
         var result = depositMoneyUseCase.execute(command, userId);
         return ResponseHelper.toResponse(result);

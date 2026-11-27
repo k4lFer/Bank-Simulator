@@ -2,13 +2,10 @@ package com.pck4x.transfers_service.infrastructure.persistence.jpa.entities;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 import com.pck4x.transfers_service.domain.enums.TransferStatus;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -16,7 +13,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -68,6 +64,7 @@ public class TransferEntity {
     @Column(name="updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "transfer", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<TransferEventEntity> events = new ArrayList<>();
+    // Fase 2: NO mapear el outbox como coleccion con orphanRemoval.
+    // Al guardar de nuevo la transferencia, Hibernate borraba los eventos
+    // pendientes/enviados del outbox. El repositorio de eventos es el unico dueno.
 }

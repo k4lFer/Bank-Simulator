@@ -5,6 +5,8 @@ import com.pck4x.accounts_service.application.port.output.AccountRepository;
 import com.pck4x.accounts_service.application.port.output.CardAccountRepository;
 import com.pck4x.accounts_service.application.port.output.CardRepository;
 import com.pck4x.accounts_service.application.port.output.EventPublisher;
+import com.pck4x.sharedcontracts.money.Money;
+import com.pck4x.accounts_service.application.port.output.ProcessedEventRepository;
 import com.pck4x.accounts_service.application.port.output.MovementNumberGenerator;
 import com.pck4x.accounts_service.domain.AccountMovement;
 import com.pck4x.accounts_service.domain.CardAccount;
@@ -17,6 +19,7 @@ import com.pck4x.sharedcontracts.enums.AccountStatus;
 import com.pck4x.sharedcontracts.event.TransferRequestedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +27,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.YearMonth;
 
+/**
+ * Flujo anterior de coreografia, conservado para dual-run.
+ * Se activa solo con app.saga.orchestrated=false; por defecto manda la saga orquestada.
+ */
 @Component
+@ConditionalOnProperty(prefix = "app.saga", name = "orchestrated", havingValue = "false")
 public class TransferEventConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(TransferEventConsumer.class);
@@ -35,19 +43,22 @@ public class TransferEventConsumer {
     private final EventPublisher eventPublisher;
     private final CardRepository cardRepository;
     private final CardAccountRepository cardAccountRepository;
+    private final ProcessedEventRepository processedEventRepository;
 
     public TransferEventConsumer(AccountRepository accountRepository,
                                  AccountMovementRepository movementRepository,
                                  MovementNumberGenerator movementNumberGenerator,
                                  EventPublisher eventPublisher,
                                  CardRepository cardRepository,
-                                 CardAccountRepository cardAccountRepository) {
+                                 CardAccountRepository cardAccountRepository,
+                                 ProcessedEventRepository processedEventRepository) {
         this.accountRepository = accountRepository;
         this.movementRepository = movementRepository;
         this.movementNumberGenerator = movementNumberGenerator;
         this.eventPublisher = eventPublisher;
         this.cardRepository = cardRepository;
         this.cardAccountRepository = cardAccountRepository;
+        this.processedEventRepository = processedEventRepository;
     }
 
     @Transactional
@@ -62,12 +73,24 @@ public class TransferEventConsumer {
             return;
         }
 
-        // Fase 0.6: importes y moneda invalidos se rechazan antes de tocar saldos.
-        if (event.getAmount() == null || event.getAmount().compareTo(BigDecimal.ZERO) <= 0
-                || event.getCurrency() == null || event.getCurrency().isBlank()) {
+        // Fase 1.4: dedupe por eventId (Inbox). Se marca dentro de la misma tx:
+        // si el procesamiento falla, el rollback tambien deshace la marca.
+        String eventId = event.getEventId() != null
+                ? event.getEventId().toString()
+                : "transfer-requested:" + event.getTransferId();
+        if (processedEventRepository.isProcessed(eventId, "accounts-transfer")) {
+            log.info("Duplicate TransferRequestedEvent ignored by inbox: eventId={}", eventId);
+            return;
+        }
+        processedEventRepository.markProcessed(eventId, "accounts-transfer");
+
+        // Fase 0.6 / 1.6: Money valida importes y moneda antes de tocar saldos.
+        try {
+            Money.of(event.getAmount(), event.getCurrency());
+        } catch (IllegalArgumentException e) {
             eventPublisher.publish("bank.account.events",
                     new AccountRejectedEvent(event.getTransferId(), event.getFromAccount(),
-                            "Invalid amount or currency", event.getAmount(), event.getCurrency()));
+                            e.getMessage(), event.getAmount(), event.getCurrency()));
             return;
         }
 

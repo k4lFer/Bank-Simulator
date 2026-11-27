@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -51,5 +52,12 @@ public class TransferRepositoryAdapter implements TransferRepository {
                 .map(TransferMapper.INSTANCE::toDomain)
                 .toList();
         return QueryResult.of(transfers, (int) page.getTotalElements(), page.getTotalPages(), page.getNumber(), page.getSize());
+    }
+
+    @Override
+    public List<Transfer> findStale(LocalDateTime cutoff) {
+        return jpaTransferRepository.findStale(cutoff).stream()
+                .map(TransferMapper.INSTANCE::toDomain)
+                .toList();
     }
 }

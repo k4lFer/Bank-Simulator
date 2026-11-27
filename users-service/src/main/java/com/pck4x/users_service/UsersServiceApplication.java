@@ -7,6 +7,7 @@ import com.pck4x.users_service.infrastructure.persistence.jpa.repositories.JpaUs
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
@@ -19,9 +20,10 @@ public class UsersServiceApplication {
 		SpringApplication.run(UsersServiceApplication.class, args);
 	}
 
+	@Bean
 	CommandLineRunner initAdmin(JpaUserRepository userRepo, PasswordEncoder encoder) {
 		return args -> {
-			if (!userRepo.existsByRole("ADMIN")) {
+			if (!userRepo.existsByRole(Role.ADMIN)) {
 				UserEntity admin = new UserEntity();
 				admin.setId(UUID.randomUUID());
 				admin.setFirstName("Admin");

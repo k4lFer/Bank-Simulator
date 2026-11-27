@@ -1,6 +1,9 @@
 package com.pck4x.users_service.infrastructure.security;
 
+import com.pck4x.sharedcontracts.security.CorrelationIdFilter;
 import com.pck4x.sharedcontracts.security.JwtAuthFilter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.core.Ordered;
 import com.pck4x.sharedcontracts.security.JwtTokenValidator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -26,6 +29,14 @@ public class SecurityConfig {
     @Bean
     public JwtAuthFilter jwtAuthFilter(JwtTokenValidator jwtTokenValidator) {
         return new JwtAuthFilter(jwtTokenValidator);
+    }
+
+    @Bean
+    public FilterRegistrationBean<CorrelationIdFilter> correlationIdFilter() {
+        var registration = new FilterRegistrationBean<>(new CorrelationIdFilter());
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        registration.addUrlPatterns("/*");
+        return registration;
     }
 
     @Bean

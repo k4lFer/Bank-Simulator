@@ -4,16 +4,14 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import io.swagger.v3.oas.annotations.Parameter;
 
 import com.pck4x.accounts_service.application.dto.command.CreateAccountCommand;
 import com.pck4x.accounts_service.application.dto.command.DepositCommand;
@@ -60,7 +58,7 @@ public class AccountController {
     @PostMapping("/create")
     public ResponseEntity<ApiResponse<AccountCreatedResponse>> createAccount(
             @RequestBody CreateAccountCommand command,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = createAccountUseCase.execute(command, userId);
         return ResponseHelper.toResponse(result);
     }
@@ -68,14 +66,14 @@ public class AccountController {
     @PostMapping("/deposit")
     public ResponseEntity<ApiResponse<DepositResponse>> depositMoney(
             @RequestBody DepositCommand command,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = depositMoneyUseCase.execute(command, userId);
         return ResponseHelper.toResponse(result);
     }
 
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<List<AccountInfoResponse>>> getMyAccounts(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = getAccountsByUserUseCase.execute(userId);
         return ResponseHelper.toResponse(result);
     }
@@ -90,7 +88,7 @@ public class AccountController {
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<AccountDetailResponse>> getAccountById(
             @PathVariable UUID id,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = getAccountByIdUseCase.execute(id, userId);
         return ResponseHelper.toResponse(result);
     }
@@ -98,7 +96,7 @@ public class AccountController {
     @GetMapping("/{id}/movements")
     public ResponseEntity<ApiResponse<List<MovementItemResponse>>> getMovements(
             @PathVariable UUID id,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = getMovementsUseCase.execute(id, userId);
         return ResponseHelper.toResponse(result);
     }
@@ -106,7 +104,7 @@ public class AccountController {
     @PatchMapping("/{id}/block")
     public ResponseEntity<ApiResponse<AccountStatusResponse>> blockAccount(
             @PathVariable UUID id,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = blockAccountUseCase.execute(id, userId);
         return ResponseHelper.toResponse(result);
     }

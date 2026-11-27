@@ -8,7 +8,14 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class TransferCompletedEvent implements Serializable {
+public class TransferCompletedEvent implements Serializable, DomainEvent {
+    private UUID eventId = UUID.randomUUID();
+
+    public UUID getEventId() {
+        return eventId;
+    }
+    private UUID correlationId;
+
     private UUID transferId;
     private String fromAccount;
     private String toAccount;

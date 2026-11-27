@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,4 +17,7 @@ public interface JpaTransferRepository extends JpaRepository<TransferEntity, Lon
 
     @Query("SELECT t FROM TransferEntity t WHERE t.fromAccount = :accountNumber OR (t.toAccount = :accountNumber AND t.status <> 'REJECTED') ORDER BY t.createdAt DESC")
     Page<TransferEntity> findByAccountNumber(@Param("accountNumber") String accountNumber, Pageable pageable);
+
+    @Query("SELECT t FROM TransferEntity t WHERE t.status IN ('PENDING','DEBITED') AND t.updatedAt < :cutoff")
+    List<TransferEntity> findStale(@Param("cutoff") LocalDateTime cutoff);
 }

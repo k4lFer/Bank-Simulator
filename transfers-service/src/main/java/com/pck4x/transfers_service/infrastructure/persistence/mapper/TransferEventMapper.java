@@ -14,9 +14,13 @@ public class TransferEventMapper {
     public TransferEventEntity toEntity(TransferEvent event) {
         TransferEventEntity entity = new TransferEventEntity();
         entity.setId(event.getId());
+        entity.setEventId(event.getEventId());
         entity.setEventType(event.getEventType());
         entity.setPayload(event.getPayload());
         entity.setStatus(event.getStatus());
+        entity.setAttempts(event.getAttempts());
+        entity.setNextAttemptAt(event.getNextAttemptAt() != null ? event.getNextAttemptAt() : LocalDateTime.now());
+        entity.setLastError(event.getLastError());
         entity.setCreatedAt(event.getCreatedAt() != null ? event.getCreatedAt() : LocalDateTime.now());
         entity.setSentAt(event.getSentAt());
         return entity;
@@ -26,9 +30,13 @@ public class TransferEventMapper {
         TransferEvent event = new TransferEvent();
         event.setId(entity.getId());
         event.setTransferId(entity.getTransfer().getTransferId());
+        event.setEventId(entity.getEventId());
         event.setEventType(entity.getEventType());
         event.setPayload(entity.getPayload());
         event.setStatus(entity.getStatus());
+        event.setAttempts(entity.getAttempts());
+        event.setNextAttemptAt(entity.getNextAttemptAt());
+        event.setLastError(entity.getLastError());
         event.setCreatedAt(entity.getCreatedAt());
         event.setSentAt(entity.getSentAt());
         return event;

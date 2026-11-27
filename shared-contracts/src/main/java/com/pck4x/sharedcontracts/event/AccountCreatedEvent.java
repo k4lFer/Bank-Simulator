@@ -8,7 +8,14 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class AccountCreatedEvent implements Serializable {
+public class AccountCreatedEvent implements Serializable, DomainEvent {
+    private UUID eventId = UUID.randomUUID();
+
+    public UUID getEventId() {
+        return eventId;
+    }
+    private UUID correlationId;
+
     private UUID id;
     private String accountNumber;
     private BigDecimal balance;

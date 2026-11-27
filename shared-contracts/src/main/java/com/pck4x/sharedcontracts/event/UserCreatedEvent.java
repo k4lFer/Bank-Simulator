@@ -7,7 +7,14 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class UserCreatedEvent implements Serializable {
+public class UserCreatedEvent implements Serializable, DomainEvent {
+    private UUID eventId = UUID.randomUUID();
+
+    public UUID getEventId() {
+        return eventId;
+    }
+    private UUID correlationId;
+
     private UUID userId;
     private String email;
     private String fullName;

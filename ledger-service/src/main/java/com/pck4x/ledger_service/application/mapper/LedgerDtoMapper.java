@@ -99,7 +99,7 @@ public class LedgerDtoMapper {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal totalCredits = dayForAccount.stream()
-                .filter(e -> "CR".equals(e.getEntryType()))
+                .filter(e -> isCredit(e.getEntryType()))
                 .map(LedgerEntries::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -117,7 +117,7 @@ public class LedgerDtoMapper {
 
     public BigDecimal calculateBalance(List<LedgerEntries> entries) {
         BigDecimal credits = entries.stream()
-                .filter(e -> "CR".equals(e.getEntryType()))
+                .filter(e -> isCredit(e.getEntryType()))
                 .map(LedgerEntries::getAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -127,5 +127,10 @@ public class LedgerDtoMapper {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return credits.subtract(debits);
+    }
+
+    /** Fase 2.6: REV devuelve saldo al origen, por lo que cuenta como credito. */
+    private boolean isCredit(String entryType) {
+        return "CR".equals(entryType) || "REV".equals(entryType);
     }
 }

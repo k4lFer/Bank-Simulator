@@ -2,6 +2,7 @@ package com.pck4x.accounts_service.infrastructure.persistence.jpa.adapters;
 
 import com.pck4x.accounts_service.application.port.output.AccountMovementRepository;
 import com.pck4x.accounts_service.domain.AccountMovement;
+import com.pck4x.accounts_service.domain.enums.MovementType;
 import com.pck4x.accounts_service.infrastructure.persistence.jpa.repositories.JpaAccountMovementRepository;
 import com.pck4x.accounts_service.infrastructure.persistence.mapper.AccountMovementMapper;
 import org.springframework.stereotype.Component;
@@ -48,6 +49,12 @@ public class AccountMovementRepositoryAdapter implements AccountMovementReposito
     @Override
     public Optional<AccountMovement> findByTransferId(UUID transferId) {
         return jpaRepository.findByTransferId(transferId)
+                .map(AccountMovementMapper.INSTANCE::toDomain);
+    }
+
+    @Override
+    public Optional<AccountMovement> findByTransferIdAndType(UUID transferId, MovementType type) {
+        return jpaRepository.findByTransferIdAndType(transferId, type)
                 .map(AccountMovementMapper.INSTANCE::toDomain);
     }
 }

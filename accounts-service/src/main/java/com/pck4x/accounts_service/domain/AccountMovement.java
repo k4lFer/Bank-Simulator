@@ -16,6 +16,8 @@ public class AccountMovement {
     private UUID accountId;
     private String movementNumber;
     private MovementType type;
+    /** Fase 2.6: numero del movimiento original revertido (solo en REVERSAL). */
+    private String reversalOf;
     private BigDecimal amount;
     private BigDecimal balanceAfter;
     private LocalDateTime createdAt;

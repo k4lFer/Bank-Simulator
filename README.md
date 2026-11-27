@@ -247,6 +247,17 @@ User
 
 ---
 
+## Nota académica / demo
+
+Este proyecto es **académico**, no un despliegue bancario real. Se conserva deliberadamente el usuario administrador de demostración creado en `UsersServiceApplication`:
+
+- **Email:** `admin@bank.com`
+- **Password:** `admin123`
+
+El arranque imprime estas credenciales en la consola para facilitar las prácticas. **No las uses fuera del entorno local de demostración.** El resto de secretos (`JWT_SECRET`, `ADMIN_BOOTSTRAP_SECRET`) sí deben configurarse por `.env`.
+
+---
+
 ## Idempotencia
 
 El sistema garantiza que una misma operación ejecutada múltiples veces produzca el mismo resultado sin efectos secundarios (safe retry). La implementación cubre tres niveles:
@@ -354,6 +365,10 @@ make run-gateway
 
 Las variables de configuración están organizadas en archivos `.env` (excluidos de Git) por servicio, más un `.env` raíz para infraestructura compartida.
 
+### Esquema y migraciones
+
+Los cinco servicios con BD usan **Flyway** (`src/main/resources/db/migration/V1__baseline.sql`) y Hibernate con `ddl-auto=validate`. La migración V1 es idempotente: crea las tablas si no existen y añade las columnas/índices nuevos a volúmenes creados antes de esta mejora. `baseline-on-migrate=true` con `baseline-version=0` permite migrar una BD antigua sin borrarla. Si necesitas generar el esquema desde cero por debugging, puedes usar temporalmente `JPA_DDL_AUTO=update`.
+
 ### Estructura
 
 ```
@@ -376,10 +391,11 @@ api-gateway/.env         ← JWT secret
 | `MYSQL_ROOT_PASSWORD` | Contraseña root de MySQL | `rootpass` |
 | `DB_USERNAME` | Usuario de BD | `root` |
 | `DB_PASSWORD` | Contraseña de BD | `rootpass` |
-| `JPA_DDL_AUTO` | Estrategia DDL de Hibernate | `update` |
+| `JPA_DDL_AUTO` | Estrategia DDL de Hibernate (Flyway gestiona el esquema) | `validate` |
 | `KAFKA_BOOTSTRAP_SERVERS` | Servidores Kafka | `kafka:9092` |
 | `DOCKER_COMPOSE_ENABLED` | Auto-config de Docker Compose | `false` |
 | `API_PROXY_TARGET` | Target del proxy de Vite | `http://api-gateway:8000` |
+| `SAGA_ORCHESTRATED` | `true` = saga orquestada (Fase 2); `false` = flujo anterior de coreografía | `true` |
 
 **`./{servicio}/.env` (específico por servicio)**
 
@@ -408,6 +424,19 @@ api-gateway/.env         ← JWT secret
 3. Los archivos `.env` son leídos automáticamente por Docker Compose (`make up`)
 
 > **Nota:** Los `application.yaml` de cada servicio tienen valores por defecto que funcionan localmente mediante `mvnw spring-boot:run`. Las variables del `.env` sobreescriben esos defaults solo cuando se despliega con Docker.
+
+---
+
+## Validación E2E
+
+Con el stack levantado (`docker compose up -d --build`) y el gateway accesible en `http://localhost:8888`:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\e2e-fase0-fase1.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\e2e-fase2.ps1
+```
+
+El segundo script valida la saga orquestada: comandos en `bank.transfer.commands`, compensación de un destino externo inexistente, asiento `REV` en el ledger y replay idempotente. Para ejecutar el flujo anterior, arranca con `SAGA_ORCHESTRATED=false`.
 
 ---
 

@@ -1,5 +1,6 @@
 package com.pck4x.accounts_service.infrastructure.persistence.jpa.repositories;
 
+import com.pck4x.accounts_service.domain.enums.MovementType;
 import com.pck4x.accounts_service.infrastructure.persistence.jpa.entities.AccountMovementEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -11,4 +12,5 @@ public interface JpaAccountMovementRepository extends JpaRepository<AccountMovem
     List<AccountMovementEntity> findByAccountIdOrderByCreatedAtDesc(UUID accountId);
     int countByAccountId(UUID accountId);
     Optional<AccountMovementEntity> findByTransferId(UUID transferId);
+    Optional<AccountMovementEntity> findByTransferIdAndType(UUID transferId, MovementType type);
 }

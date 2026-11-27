@@ -9,6 +9,7 @@ import com.pck4x.transfers_service.infrastructure.persistence.mapper.TransferEve
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -37,6 +38,16 @@ public class TransferEventRepositoryAdapter implements TransferEventRepository {
     @Override
     public List<TransferEvent> findByStatus(OutboxStatus status) {
         return jpaTransferEventRepository.findByStatus(status)
+                .stream()
+                .map(TransferEventMapper.INSTANCE::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<TransferEvent> findRetryable(LocalDateTime now) {
+        return jpaTransferEventRepository
+                .findByStatusInAndNextAttemptAtBeforeOrderByIdAsc(
+                        List.of(OutboxStatus.PENDING, OutboxStatus.FAILED), now)
                 .stream()
                 .map(TransferEventMapper.INSTANCE::toDomain)
                 .toList();

@@ -1,6 +1,7 @@
 package com.pck4x.notifications_service.infrastructure.kafka;
 
 import com.pck4x.notifications_service.application.port.output.NotificationRepository;
+import com.pck4x.notifications_service.application.port.output.ProcessedEventRepository;
 import com.pck4x.notifications_service.domain.Notification;
 import com.pck4x.notifications_service.domain.enums.NotificationType;
 import com.pck4x.notifications_service.interfaces.rest.NotificationSseController;
@@ -22,11 +23,14 @@ public class TransferNotificationConsumer {
 
     private final NotificationRepository notificationRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final ProcessedEventRepository processedEventRepository;
 
     public TransferNotificationConsumer(NotificationRepository notificationRepository,
-                                         ApplicationEventPublisher eventPublisher) {
+                                         ApplicationEventPublisher eventPublisher,
+                                         ProcessedEventRepository processedEventRepository) {
         this.notificationRepository = notificationRepository;
         this.eventPublisher = eventPublisher;
+        this.processedEventRepository = processedEventRepository;
     }
 
     @Transactional
@@ -36,6 +40,15 @@ public class TransferNotificationConsumer {
             log.debug("Ignored event type: {}", record.value().getClass().getSimpleName());
             return;
         }
+
+        String eventId = event.getEventId() != null
+                ? event.getEventId().toString()
+                : "notification:" + event.hashCode();
+        if (processedEventRepository.isProcessed(eventId, "notifications-transfer")) {
+            log.info("Duplicate notification ignored by inbox: eventId={}", eventId);
+            return;
+        }
+        processedEventRepository.markProcessed(eventId, "notifications-transfer");
 
         log.info("Received notification event for user={}, type={}", event.getUserId(), event.getType());
 

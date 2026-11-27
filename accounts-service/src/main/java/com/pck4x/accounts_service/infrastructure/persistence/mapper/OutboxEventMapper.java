@@ -16,8 +16,12 @@ public class OutboxEventMapper {
         entity.setId(event.getId());
         entity.setTopic(event.getTopic());
         entity.setEventType(event.getEventType());
+        entity.setEventId(event.getEventId());
         entity.setPayload(event.getPayload());
         entity.setStatus(event.getStatus());
+        entity.setAttempts(event.getAttempts());
+        entity.setNextAttemptAt(event.getNextAttemptAt() != null ? event.getNextAttemptAt() : LocalDateTime.now());
+        entity.setLastError(event.getLastError());
         entity.setCreatedAt(event.getCreatedAt() != null ? event.getCreatedAt() : LocalDateTime.now());
         entity.setSentAt(event.getSentAt());
         return entity;
@@ -28,8 +32,12 @@ public class OutboxEventMapper {
         event.setId(entity.getId());
         event.setTopic(entity.getTopic());
         event.setEventType(entity.getEventType());
+        event.setEventId(entity.getEventId());
         event.setPayload(entity.getPayload());
         event.setStatus(entity.getStatus());
+        event.setAttempts(entity.getAttempts());
+        event.setNextAttemptAt(entity.getNextAttemptAt());
+        event.setLastError(entity.getLastError());
         event.setCreatedAt(entity.getCreatedAt());
         event.setSentAt(entity.getSentAt());
         return event;

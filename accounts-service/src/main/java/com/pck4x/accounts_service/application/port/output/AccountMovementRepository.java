@@ -1,6 +1,7 @@
 package com.pck4x.accounts_service.application.port.output;
 
 import com.pck4x.accounts_service.domain.AccountMovement;
+import com.pck4x.accounts_service.domain.enums.MovementType;
 
 import java.util.List;
 import java.util.Optional;
@@ -12,4 +13,5 @@ public interface AccountMovementRepository {
     List<AccountMovement> findByAccountId(UUID accountId);
     int countByAccountId(UUID accountId);
     Optional<AccountMovement> findByTransferId(UUID transferId);
+    Optional<AccountMovement> findByTransferIdAndType(UUID transferId, MovementType type);
 }

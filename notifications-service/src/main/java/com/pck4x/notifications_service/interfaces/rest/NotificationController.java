@@ -9,12 +9,11 @@ import com.pck4x.notifications_service.application.feature.unreadcount.UnreadCou
 import com.pck4x.sharedcontracts.helper.ResponseHelper;
 import com.pck4x.sharedcontracts.objects.ApiResponse;
 import com.pck4x.sharedcontracts.objects.QueryResult;
-import io.swagger.v3.oas.annotations.Parameter;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,7 +42,7 @@ public class NotificationController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<QueryResult<List<NotificationResponse>>>> listNotifications(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId,
+            @AuthenticationPrincipal UUID userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         var result = listNotificationsUseCase.execute(userId, page, size);
@@ -52,7 +51,7 @@ public class NotificationController {
 
     @GetMapping("/unread-count")
     public ResponseEntity<ApiResponse<UnreadCountResponse>> unreadCount(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = unreadCountUseCase.execute(userId);
         return ResponseHelper.toResponse(result);
     }
@@ -60,14 +59,14 @@ public class NotificationController {
     @PatchMapping("/{id}/read")
     public ResponseEntity<ApiResponse<NotificationResponse>> markAsRead(
             @PathVariable UUID id,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = readNotificationUseCase.execute(id, userId);
         return ResponseHelper.toResponse(result);
     }
 
     @PatchMapping("/read-all")
     public ResponseEntity<ApiResponse<Void>> markAllAsRead(
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = readAllNotificationsUseCase.execute(userId);
         return ResponseHelper.toResponse(result);
     }

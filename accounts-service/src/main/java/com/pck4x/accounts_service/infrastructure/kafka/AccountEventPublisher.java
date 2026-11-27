@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pck4x.accounts_service.application.port.output.EventPublisher;
 import com.pck4x.accounts_service.application.port.output.OutboxEventRepository;
 import com.pck4x.accounts_service.domain.OutboxEvent;
+import com.pck4x.sharedcontracts.event.DomainEvent;
+import com.pck4x.sharedcontracts.security.CorrelationContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -25,9 +27,11 @@ public class AccountEventPublisher implements EventPublisher {
     @Override
     public void publish(String topic, Object event) {
         try {
+            CorrelationContext.stamp(event);
             var payload = objectMapper.writeValueAsString(event);
-            var eventType = event.getClass().getName();
-            var outboxEvent = new OutboxEvent(topic, eventType, payload);
+            var eventType = AccountEventType.nameOf(event);
+            var eventId = event instanceof DomainEvent domainEvent ? domainEvent.getEventId() : null;
+            var outboxEvent = new OutboxEvent(topic, eventType, payload, eventId);
             outboxEventRepository.save(outboxEvent);
             log.debug("Event saved to outbox: topic={}, eventType={}", topic, eventType);
         } catch (Exception e) {

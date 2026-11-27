@@ -17,6 +17,7 @@ public class AccountMovementMapper {
         entity.setMovementNumber(movement.getMovementNumber());
         entity.setAccountId(movement.getAccountId());
         entity.setType(movement.getType());
+        entity.setReversalOf(movement.getReversalOf());
         entity.setAmount(movement.getAmount());
         entity.setBalanceAfter(movement.getBalanceAfter());
         entity.setCreatedAt(movement.getCreatedAt() != null ? movement.getCreatedAt() : LocalDateTime.now());
@@ -30,6 +31,7 @@ public class AccountMovementMapper {
         movement.setMovementNumber(entity.getMovementNumber());
         movement.setAccountId(entity.getAccountId());
         movement.setType(entity.getType());
+        movement.setReversalOf(entity.getReversalOf());
         movement.setAmount(entity.getAmount());
         movement.setBalanceAfter(entity.getBalanceAfter());
         movement.setCreatedAt(entity.getCreatedAt());

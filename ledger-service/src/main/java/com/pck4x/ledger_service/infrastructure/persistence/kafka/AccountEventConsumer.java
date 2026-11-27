@@ -12,8 +12,12 @@ import org.springframework.stereotype.Component;
 
 import com.pck4x.ledger_service.application.event.LedgerEntryEvent;
 import com.pck4x.ledger_service.application.port.output.LedgerRepository;
+import com.pck4x.sharedcontracts.money.Money;
+import com.pck4x.ledger_service.application.port.output.ProcessedEventRepository;
 import com.pck4x.ledger_service.domain.LedgerEntries;
 import com.pck4x.sharedcontracts.event.AccountCreditedEvent;
+import com.pck4x.sharedcontracts.event.AccountCreditFailedEvent;
+import com.pck4x.sharedcontracts.event.AccountDebitCompensatedEvent;
 import com.pck4x.sharedcontracts.event.AccountDebitedEvent;
 import com.pck4x.sharedcontracts.event.AccountDepositedEvent;
 import com.pck4x.sharedcontracts.event.AccountRejectedEvent;
@@ -27,17 +31,27 @@ public class AccountEventConsumer {
 
     private final LedgerRepository ledgerRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final ProcessedEventRepository processedEventRepository;
 
     public AccountEventConsumer(LedgerRepository ledgerRepository,
-                                 ApplicationEventPublisher eventPublisher) {
+                                 ApplicationEventPublisher eventPublisher,
+                                 ProcessedEventRepository processedEventRepository) {
         this.ledgerRepository = ledgerRepository;
         this.eventPublisher = eventPublisher;
+        this.processedEventRepository = processedEventRepository;
     }
 
     @Transactional
     @KafkaListener(topics = "bank.account.events", groupId = "ledger-service")
     public void handlerAccountEvent(ConsumerRecord<String, Object> record) {
         Object event = record.value();
+
+        String eventId = resolveEventId(event);
+        if (processedEventRepository.isProcessed(eventId, "ledger-account")) {
+            log.info("Duplicate event ignored by inbox: eventId={}", eventId);
+            return;
+        }
+        processedEventRepository.markProcessed(eventId, "ledger-account");
 
         if (event instanceof AccountDebitedEvent e) {
             log.info("Debit event: transferId={}, account={}, amount={}",
@@ -53,6 +67,17 @@ public class AccountEventConsumer {
             log.info("Deposit event: account={}, amount={}",
                     e.getAccountNumber(), e.getAmount());
             saveEntry(null, e.getAccountNumber(), "CR", e.getAmount(), e.getCurrency());
+
+        } else if (event instanceof AccountDebitCompensatedEvent e) {
+            // Fase 2.6: asiento invertido con tipo propio (varchar(3) => REV).
+            log.info("Reversal event: transferId={}, account={}, reversalOf={}",
+                    e.getTransferId(), e.getAccountNumber(), e.getReversalOf());
+            saveEntry(e.getTransferId(), e.getAccountNumber(), "REV", e.getAmount(), e.getCurrency());
+
+        } else if (event instanceof AccountCreditFailedEvent e) {
+            // Fase 2.5: el credito fallo sin tocar saldos, por lo que no hay asiento.
+            log.warn("Credit failed event ignored by ledger: transferId={}, reason={}",
+                    e.getTransferId(), e.getReason());
 
         } else if (event instanceof AccountRejectedEvent e) {
             log.warn("Rejected event: transferId={}, account={}, reason={}",
@@ -73,7 +98,30 @@ public class AccountEventConsumer {
         }
     }
 
+    private String resolveEventId(Object event) {
+        if (event == null) {
+            return "unknown:" + UUID.randomUUID();
+        }
+        UUID eventId = null;
+        if (event instanceof AccountDebitedEvent e) eventId = e.getEventId();
+        else if (event instanceof AccountCreditedEvent e) eventId = e.getEventId();
+        else if (event instanceof AccountDebitCompensatedEvent e) eventId = e.getEventId();
+        else if (event instanceof AccountCreditFailedEvent e) eventId = e.getEventId();
+        else if (event instanceof AccountDepositedEvent e) eventId = e.getEventId();
+        else if (event instanceof AccountRejectedEvent e) eventId = e.getEventId();
+        return eventId != null ? eventId.toString() : event.getClass().getSimpleName() + ":" + event.hashCode();
+    }
+
     private void saveEntry(UUID transferId, String accountNumber, String entryType, BigDecimal amount, String currency) {
+        // Fase 1.6: el ledger nunca persiste importes invalidos.
+        try {
+            Money.of(amount, currency);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid ledger entry ignored: transferId={}, account={}, reason={}",
+                    transferId, accountNumber, e.getMessage());
+            return;
+        }
+
         if (transferId != null) {
             var existing = ledgerRepository.findByTransferIdAndEntryTypeAndAccountNumber(transferId, entryType, accountNumber);
             if (existing.isPresent()) {

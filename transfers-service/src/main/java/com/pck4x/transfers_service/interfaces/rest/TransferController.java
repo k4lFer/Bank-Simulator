@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,8 +23,6 @@ import com.pck4x.transfers_service.application.feature.externaltransfer.External
 import com.pck4x.transfers_service.application.feature.gettransfer.GetTransferUseCase;
 import com.pck4x.transfers_service.application.feature.gettransferbyaccount.GetTransfersByAccountUseCase;
 import com.pck4x.transfers_service.application.feature.internaltransfer.InternalTransferUseCase;
-
-import io.swagger.v3.oas.annotations.Parameter;
 
 @RestController
 @RequestMapping("/api/transfers")
@@ -48,7 +47,7 @@ public class TransferController {
     public ResponseEntity<ApiResponse<TransferResponse>> internalTransfer(
             @RequestBody TransferCommand command,
             @RequestHeader("Idempotency-Key") UUID idempotencyKey,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = internalTransferUseCase.execute(command, idempotencyKey, userId);
         return ResponseHelper.toResponse(result);
     }
@@ -57,7 +56,7 @@ public class TransferController {
     public ResponseEntity<ApiResponse<TransferResponse>> externalTransfer(
             @RequestBody TransferCommand command,
             @RequestHeader("Idempotency-Key") UUID idempotencyKey,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = externalTransferUseCase.execute(command, idempotencyKey, userId);
         return ResponseHelper.toResponse(result);
     }
@@ -66,7 +65,7 @@ public class TransferController {
     public ResponseEntity<ApiResponse<TransferResponse>> cardPayment(
             @RequestBody TransferCommand command,
             @RequestHeader("Idempotency-Key") UUID idempotencyKey,
-            @Parameter(hidden = true) @RequestHeader("X-User-Id") UUID userId) {
+            @AuthenticationPrincipal UUID userId) {
         var result = externalTransferUseCase.execute(command, idempotencyKey, userId);
         return ResponseHelper.toResponse(result);
     }

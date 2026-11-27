@@ -33,6 +33,9 @@ public class TransferEventEntity {
     @JoinColumn(name = "transfer_id", nullable = false)
     private TransferEntity transfer;
 
+    @Column(name = "event_id")
+    private UUID eventId;
+
     @Column(name = "event_type", nullable = false, length = 50)
     private String eventType;
 
@@ -43,6 +46,15 @@ public class TransferEventEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     private OutboxStatus status;
+
+    @Column(name = "attempts", nullable = false)
+    private int attempts;
+
+    @Column(name = "next_attempt_at", nullable = false)
+    private LocalDateTime nextAttemptAt;
+
+    @Column(name = "last_error", length = 1000)
+    private String lastError;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

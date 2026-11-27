@@ -13,6 +13,7 @@ import reactor.core.publisher.Mono;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 @Component
 public class JwtValidationGatewayFilterFactory
@@ -28,6 +29,13 @@ public class JwtValidationGatewayFilterFactory
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
+            // Fase 1.5: correlation ID disponible incluso en respuestas 401.
+            String correlationId = exchange.getRequest().getHeaders().getFirst("X-Correlation-Id");
+            if (correlationId == null || correlationId.isBlank()) {
+                correlationId = UUID.randomUUID().toString();
+            }
+            exchange.getResponse().getHeaders().set("X-Correlation-Id", correlationId);
+
             String authHeader = exchange.getRequest().getHeaders()
                     .getFirst("Authorization");
 
@@ -47,6 +55,7 @@ public class JwtValidationGatewayFilterFactory
                 var mutatedRequest = exchange.getRequest().mutate()
                         .header("X-User-Id", claims.getSubject())
                         .header("X-User-Role", claims.get("role", String.class))
+                        .header("X-Correlation-Id", correlationId)
                         .build();
 
                 return chain.filter(exchange.mutate().request(mutatedRequest).build());

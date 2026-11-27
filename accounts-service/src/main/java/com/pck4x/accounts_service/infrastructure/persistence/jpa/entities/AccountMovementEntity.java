@@ -46,6 +46,9 @@ public class AccountMovementEntity {
     @Column(name = "type", nullable = false, length = 10)
     private MovementType type;
 
+    @Column(name = "reversal_of", length = 20)
+    private String reversalOf;
+
     @Column(name = "amount", nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;
 

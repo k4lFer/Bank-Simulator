@@ -4,13 +4,17 @@ import com.pck4x.sharedcontracts.event.AccountCreditedEvent;
 import com.pck4x.sharedcontracts.event.AccountDebitedEvent;
 import com.pck4x.sharedcontracts.event.AccountRejectedEvent;
 import com.pck4x.sharedcontracts.event.TransferNotificationEvent;
+import com.pck4x.sharedcontracts.security.CorrelationContext;
 import com.pck4x.transfers_service.application.event.TransferStatusEvent;
+import com.pck4x.transfers_service.application.feature.saga.TransferSagaOrchestrator;
 import com.pck4x.transfers_service.application.port.output.EventPublisher;
+import com.pck4x.transfers_service.application.port.output.ProcessedEventRepository;
 import com.pck4x.transfers_service.application.port.output.TransferRepository;
 import com.pck4x.transfers_service.domain.enums.TransferStatus;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
@@ -24,19 +28,44 @@ public class AccountEventConsumer {
     private final TransferRepository transferRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final EventPublisher kafkaPublisher;
+    private final ProcessedEventRepository processedEventRepository;
+    private final TransferSagaOrchestrator orchestrator;
+    private final boolean orchestrated;
 
     public AccountEventConsumer(TransferRepository transferRepository,
                                  ApplicationEventPublisher eventPublisher,
-                                 EventPublisher kafkaPublisher) {
+                                 EventPublisher kafkaPublisher,
+                                 ProcessedEventRepository processedEventRepository,
+                                 TransferSagaOrchestrator orchestrator,
+                                 @Value("${app.saga.orchestrated:true}") boolean orchestrated) {
         this.transferRepository = transferRepository;
         this.eventPublisher = eventPublisher;
         this.kafkaPublisher = kafkaPublisher;
+        this.processedEventRepository = processedEventRepository;
+        this.orchestrator = orchestrator;
+        this.orchestrated = orchestrated;
     }
 
     @Transactional
     @KafkaListener(topics = "bank.account.events", groupId = "transfers-service")
     public void handleAccountEvent(ConsumerRecord<String, Object> record) {
         Object event = record.value();
+
+        // Fase 2: la saga orquestada centraliza estado, comandos y notificaciones.
+        // El codigo inferior se conserva solo para el dual-run (flag=false).
+        if (orchestrated) {
+            orchestrator.handle(event);
+            return;
+        }
+
+        // Fase 1.4: dedupe por eventId antes de cualquier cambio de estado.
+        String eventId = resolveEventId(event);
+        if (processedEventRepository.isProcessed(eventId, "transfers-account")) {
+            log.info("Duplicate event ignored by inbox: eventId={}", eventId);
+            return;
+        }
+        processedEventRepository.markProcessed(eventId, "transfers-account");
+
         if (event instanceof AccountDebitedEvent e) {
             log.info("Received AccountDebitedEvent: transferId={}, account={}",
                     e.getTransferId(), e.getAccountNumber());
@@ -50,7 +79,7 @@ public class AccountEventConsumer {
                 transfer = transferRepository.save(transfer);
                 eventPublisher.publishEvent(new TransferStatusEvent(transfer));
 
-                kafkaPublisher.publish("bank.notification.events",
+                publishNotification(e,
                         new TransferNotificationEvent(transfer.getUserId(), null,
                                 "TRANSFER_SENT", "Transferencia enviada",
                                 "Transferencia de " + e.getAmount() + " " + e.getCurrency()
@@ -75,7 +104,7 @@ public class AccountEventConsumer {
 
                 // Notify recipient
                 if (e.getToUserId() != null) {
-                    kafkaPublisher.publish("bank.notification.events",
+                    publishNotification(e,
                             new TransferNotificationEvent(e.getToUserId(), null,
                                     "TRANSFER_RECEIVED", "Transferencia recibida",
                                     "Recibiste " + e.getAmount() + " " + e.getCurrency()
@@ -109,7 +138,7 @@ public class AccountEventConsumer {
                 transfer = transferRepository.save(transfer);
                 eventPublisher.publishEvent(new TransferStatusEvent(transfer));
 
-                kafkaPublisher.publish("bank.notification.events",
+                publishNotification(e,
                         new TransferNotificationEvent(transfer.getUserId(), null,
                                 wasDebited ? "TRANSFER_COMPENSATED" : "TRANSFER_REJECTED",
                                 wasDebited ? "Transferencia revertida" : "Transferencia rechazada",
@@ -123,5 +152,23 @@ public class AccountEventConsumer {
         } else {
             log.debug("Ignored event type: {}", event.getClass().getSimpleName());
         }
+    }
+
+    private void publishNotification(Object source, TransferNotificationEvent notification) {
+        CorrelationContext.copy(source, notification);
+        kafkaPublisher.publish("bank.notification.events", notification);
+    }
+
+    private String resolveEventId(Object event) {
+        if (event == null) {
+            return "unknown:" + java.util.UUID.randomUUID();
+        }
+        java.util.UUID eventId = null;
+        if (event instanceof AccountDebitedEvent e) eventId = e.getEventId();
+        else if (event instanceof AccountCreditedEvent e) eventId = e.getEventId();
+        else if (event instanceof AccountRejectedEvent e) eventId = e.getEventId();
+        return eventId != null
+                ? eventId.toString()
+                : event.getClass().getSimpleName() + ":" + event.hashCode();
     }
 }

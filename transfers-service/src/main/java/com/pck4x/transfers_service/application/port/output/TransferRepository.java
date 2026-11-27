@@ -1,6 +1,7 @@
 package com.pck4x.transfers_service.application.port.output;
 
 import org.springframework.data.domain.Pageable;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -13,4 +14,6 @@ public interface TransferRepository {
     Optional<Transfer> findById(Long id);
     Optional<Transfer> findByTransferId(UUID transferId);
     QueryResult<List<Transfer>> findByAccountNumber(Pageable pageable, String accountNumber);
+    /** Fase 2.9: transferencias en estados no terminales mas antiguas que el corte. */
+    List<Transfer> findStale(LocalDateTime cutoff);
 }

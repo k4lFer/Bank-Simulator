@@ -1,0 +1,5 @@
+# La imagen copia el script de inicializacion en lugar de montarlo como volumen.
+# En Docker Desktop, un .sql bind-mount hace que el entrypoint de mysql falle con
+# "Can't initialize batch_readline" al redirigir stdin desde el archivo montado.
+FROM mysql:8
+COPY init-dbs.sql /docker-entrypoint-initdb.d/init-dbs.sql

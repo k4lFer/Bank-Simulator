@@ -9,6 +9,7 @@ import com.pck4x.accounts_service.infrastructure.persistence.mapper.OutboxEventM
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -31,6 +32,16 @@ public class OutboxEventRepositoryAdapter implements OutboxEventRepository {
     @Override
     public List<OutboxEvent> findByStatus(OutboxStatus status) {
         return jpaOutboxEventRepository.findByStatusOrderByIdAsc(status)
+                .stream()
+                .map(OutboxEventMapper.INSTANCE::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<OutboxEvent> findRetryable(LocalDateTime now) {
+        return jpaOutboxEventRepository
+                .findByStatusInAndNextAttemptAtBeforeOrderByIdAsc(
+                        List.of(OutboxStatus.PENDING, OutboxStatus.FAILED), now)
                 .stream()
                 .map(OutboxEventMapper.INSTANCE::toDomain)
                 .toList();

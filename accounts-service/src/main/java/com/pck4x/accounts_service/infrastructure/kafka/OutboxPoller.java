@@ -31,33 +31,58 @@ public class OutboxPoller {
         this.objectMapper = objectMapper;
     }
 
+    private static final int MAX_ATTEMPTS = 5;
+
     @Transactional
     @Scheduled(fixedDelay = 500)
     public void processPendingEvents() {
-        var pendingEvents = outboxEventRepository.findByStatus(OutboxStatus.PENDING);
+        var pendingEvents = outboxEventRepository.findRetryable(LocalDateTime.now());
 
         for (OutboxEvent outboxEvent : pendingEvents) {
             try {
-                var eventClass = Class.forName(outboxEvent.getEventType());
+                var eventClass = AccountEventType.resolve(outboxEvent.getEventType());
                 var event = objectMapper.readValue(outboxEvent.getPayload(), eventClass);
 
                 kafkaTemplate.send(outboxEvent.getTopic(), event).get(10, TimeUnit.SECONDS);
 
                 outboxEvent.setStatus(OutboxStatus.SENT);
                 outboxEvent.setSentAt(LocalDateTime.now());
+                outboxEvent.setLastError(null);
                 outboxEventRepository.save(outboxEvent);
 
                 log.info("Outbox event {} ({}) published to {}", outboxEvent.getId(),
                         outboxEvent.getEventType(), outboxEvent.getTopic());
-            } catch (ClassNotFoundException e) {
-                log.error("Event class not found for outbox event {}: {}",
-                        outboxEvent.getId(), outboxEvent.getEventType(), e);
-                outboxEvent.setStatus(OutboxStatus.FAILED);
-                outboxEventRepository.save(outboxEvent);
             } catch (Exception e) {
-                log.error("Failed to process outbox event {}: {}",
-                        outboxEvent.getId(), e.getMessage(), e);
+                outboxEvent.setAttempts(outboxEvent.getAttempts() + 1);
+                outboxEvent.setLastError(truncate(e.getMessage()));
+
+                if (outboxEvent.getAttempts() >= MAX_ATTEMPTS) {
+                    outboxEvent.setStatus(OutboxStatus.FAILED);
+                    outboxEvent.setNextAttemptAt(LocalDateTime.now().plusDays(365));
+                    log.error("DEAD LETTER outbox event {} ({}) after {} attempts: {}",
+                            outboxEvent.getId(), outboxEvent.getEventType(),
+                            outboxEvent.getAttempts(), outboxEvent.getLastError());
+                } else {
+                    outboxEvent.setStatus(OutboxStatus.PENDING);
+                    outboxEvent.setNextAttemptAt(
+                            LocalDateTime.now().plusSeconds(backoffSeconds(outboxEvent.getAttempts())));
+                    log.warn("Outbox event {} will be retried in {} s (attempt {}/{}): {}",
+                            outboxEvent.getId(), backoffSeconds(outboxEvent.getAttempts()),
+                            outboxEvent.getAttempts(), MAX_ATTEMPTS, outboxEvent.getLastError());
+                }
+                outboxEventRepository.save(outboxEvent);
             }
         }
+    }
+
+    private long backoffSeconds(int attempts) {
+        return Math.min(60, 1L << Math.min(attempts, 6));
+    }
+
+    private String truncate(String message) {
+        if (message == null) {
+            return "unknown error";
+        }
+        return message.length() > 900 ? message.substring(0, 900) : message;
     }
 }

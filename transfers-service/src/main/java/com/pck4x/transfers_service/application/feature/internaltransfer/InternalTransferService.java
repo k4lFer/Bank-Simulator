@@ -1,34 +1,33 @@
 package com.pck4x.transfers_service.application.feature.internaltransfer;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.pck4x.sharedcontracts.command.TransferDebitCommand;
 import com.pck4x.sharedcontracts.event.TransferRequestedEvent;
+import com.pck4x.sharedcontracts.money.Money;
 import com.pck4x.sharedcontracts.result.OutputPort;
 import com.pck4x.transfers_service.application.dto.command.TransferCommand;
 import com.pck4x.transfers_service.application.dto.response.TransferResponse;
-import com.pck4x.transfers_service.application.port.output.TransferEventRepository;
 import com.pck4x.transfers_service.application.port.output.TransferRepository;
 import com.pck4x.transfers_service.domain.Transfer;
-import com.pck4x.transfers_service.domain.TransferEvent;
+import com.pck4x.transfers_service.infrastructure.kafka.TransferCommandPublisher;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 @Service
 public class InternalTransferService implements InternalTransferUseCase {
 
     private final TransferRepository transferRepository;
-    private final TransferEventRepository transferEventRepository;
-    private final ObjectMapper objectMapper;
+    private final TransferCommandPublisher commandPublisher;
+    private final boolean orchestrated;
 
     public InternalTransferService(TransferRepository transferRepository,
-                                   TransferEventRepository transferEventRepository,
-                                   ObjectMapper objectMapper) {
+                                   TransferCommandPublisher commandPublisher,
+                                   @Value("${app.saga.orchestrated:true}") boolean orchestrated) {
         this.transferRepository = transferRepository;
-        this.transferEventRepository = transferEventRepository;
-        this.objectMapper = objectMapper;
+        this.commandPublisher = commandPublisher;
+        this.orchestrated = orchestrated;
     }
 
     @Override
@@ -40,13 +39,17 @@ public class InternalTransferService implements InternalTransferUseCase {
             return OutputPort.ok(toResponse(t), "Internal transfer (idempotent replay)");
         }
 
-        // Fase 0.6: validar antes de persistir.
-        if (input == null || input.getAmount() == null
-                || input.getAmount().compareTo(BigDecimal.ZERO) <= 0
+        // Fase 0.6 / 1.6: validar antes de persistir con el value object Money.
+        if (input == null
                 || input.getFromAccount() == null || input.getFromAccount().isBlank()
-                || input.getToAccount() == null || input.getToAccount().isBlank()
-                || input.getCurrency() == null || input.getCurrency().isBlank()) {
-            return OutputPort.badRequest("Amount must be positive and account/currency fields are required");
+                || input.getToAccount() == null || input.getToAccount().isBlank()) {
+            return OutputPort.badRequest("Account fields are required");
+        }
+        Money money;
+        try {
+            money = Money.of(input.getAmount(), input.getCurrency());
+        } catch (IllegalArgumentException e) {
+            return OutputPort.badRequest(e.getMessage());
         }
 
         var transferId = idempotencyKey;
@@ -56,30 +59,24 @@ public class InternalTransferService implements InternalTransferUseCase {
                 userId,
                 input.getFromAccount(),
                 input.getToAccount(),
-                input.getAmount(),
-                input.getCurrency(),
+                money.amount(),
+                money.currency(),
                 input.getDescription()
         );
         transfer = transferRepository.save(transfer);
 
-        var event = new TransferRequestedEvent(
-                transferId,
-                input.getFromAccount(),
-                input.getToAccount(),
-                input.getAmount(),
-                input.getCurrency(),
-                input.getDescription()
-        );
-        event.setTransferType("INTERNAL");
-        event.setUserId(userId);
-
-        try {
-            var payload = objectMapper.writeValueAsString(event);
-            var outboxEvent = new TransferEvent(transferId, "TransferRequested", payload);
-            transferEventRepository.save(outboxEvent);
-        } catch (JsonProcessingException e) {
-            // Fase 0.4: propagar para que @Transactional revierta tambien la transferencia.
-            throw new IllegalStateException("Failed to serialize transfer event", e);
+        // Fase 2.10: la flag permite volver al flujo de coreografia (dual-run).
+        if (orchestrated) {
+            var command = new TransferDebitCommand(transferId, input.getFromAccount(), input.getToAccount(),
+                    money.amount(), money.currency(), input.getDescription());
+            command.setUserId(userId);
+            commandPublisher.enqueue(transferId, command);
+        } else {
+            var event = new TransferRequestedEvent(transferId, input.getFromAccount(), input.getToAccount(),
+                    money.amount(), money.currency(), input.getDescription());
+            event.setTransferType("INTERNAL");
+            event.setUserId(userId);
+            commandPublisher.enqueue(transferId, event);
         }
 
         return OutputPort.created(toResponse(transfer), "Internal transfer initiated");

@@ -13,9 +13,16 @@ spring:
       connection-timeout: 5000
       max-lifetime: 600000
 
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    baseline-description: "esquema previo creado por ddl-auto=update"
+    locations: classpath:db/migration
+
   jpa:
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update}
+      ddl-auto: ${JPA_DDL_AUTO:validate}
     show-sql: false
     properties:
       hibernate:
@@ -59,3 +66,7 @@ app:
     access-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:1800000}
     refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:604800000}
   admin-bootstrap-secret: ${ADMIN_BOOTSTRAP_SECRET:change-me-in-production}
+
+logging:
+  pattern:
+    level: "%5p [%X{correlationId}]"
